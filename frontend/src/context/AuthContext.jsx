@@ -26,14 +26,17 @@ export function AuthProvider({ children }) {
   const [hospitals, setHospitals] = useState([]);
   const [selectedHospitalId, setSelectedHospitalId] = useState(() => localStorage.getItem('medikiosk_hospital_id') || '');
 
-  // Fetch public hospitals on mount
+  // Fetch public hospitals on mount & validate selectedHospitalId
   useEffect(() => {
     api.get('/hospitals/public')
       .then(list => {
         setHospitals(list);
-        if (list.length > 0 && !selectedHospitalId) {
-          setSelectedHospitalId(list[0].id);
-          localStorage.setItem('medikiosk_hospital_id', list[0].id);
+        if (list && list.length > 0) {
+          const exists = list.some(h => h.id === selectedHospitalId);
+          if (!exists) {
+            setSelectedHospitalId(list[0].id);
+            localStorage.setItem('medikiosk_hospital_id', list[0].id);
+          }
         }
       })
       .catch(err => console.log('Hospitals fetch error:', err.message));
@@ -42,6 +45,15 @@ export function AuthProvider({ children }) {
   const selectHospital = (id) => {
     setSelectedHospitalId(id);
     localStorage.setItem('medikiosk_hospital_id', id);
+  };
+
+  const addHospital = async ({ name, address, contact_phone, registration_mode }) => {
+    const res = await api.post('/hospitals/create', { name, address, contact_phone, registration_mode });
+    if (res.hospital) {
+      setHospitals(prev => [...prev, res.hospital]);
+      selectHospital(res.hospital.id);
+      return res.hospital;
+    }
   };
 
   // Staff Login & Logout
@@ -107,6 +119,7 @@ export function AuthProvider({ children }) {
       hospitals,
       selectedHospitalId,
       selectHospital,
+      addHospital,
       staffToken,
       staffUser,
       loginStaff,

@@ -27,8 +27,18 @@ const upload = multer({ storage });
 router.get('/session-case', authenticatePatientSession, intakeController.getSessionCase);
 router.post('/answer', authenticatePatientSession, intakeController.submitAnswer);
 router.post('/voice-map', intakeController.voiceOptionMap);
+router.post('/speech-to-text', intakeController.speechToText);
+router.post('/text-to-speech', intakeController.textToSpeech);
 router.post('/upload-doc', authenticatePatientSession, upload.single('document'), intakeController.uploadDocument);
 router.post('/complete', authenticatePatientSession, intakeController.completeIntake);
 router.get('/patient-history', authenticatePatientSession, intakeController.getPatientHistory);
+
+// AI-Powered Inquiry Endpoints
+router.post('/ai-inquiry', intakeController.aiInquiry);
+router.post('/generate-report', intakeController.generateReport);
+
+// ABHA/ABDM Integration Endpoints
+router.post('/verify-abha', intakeController.verifyAbha);
+router.get('/abha-history', intakeController.getAbhaHistory);
 
 module.exports = router;

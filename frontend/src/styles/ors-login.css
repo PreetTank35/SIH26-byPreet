@@ -1,0 +1,634 @@
+/* ==========================================================================
+   ORS (Online Registration System) Standard Login Styles
+   Themed to match MediKiosk Deep Teal Government Palette
+   WCAG 2.2 AA & GIGW 3.0 Compliant
+   ========================================================================== */
+
+.ors-login-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  min-height: 0;
+}
+
+.ors-view-login-container {
+  max-width: 1040px;
+  width: 100%;
+  margin: 12px auto;
+  padding: 0 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.ors-login-card {
+  width: 100%;
+  max-width: 1040px;
+  background: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  border: 1px solid #0B1F3A;
+  font-family: inherit;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  height: min(760px, calc(100vh - 168px));
+  min-height: 560px;
+  max-height: calc(100vh - 132px);
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Header Banner — Deep Teal matching MediKiosk theme with crisp white text */
+.ors-login-header {
+  background: #0B1F3A;
+  color: #ffffff;
+  padding: 16px 36px;
+  text-align: center;
+  position: relative;
+  flex-shrink: 0;
+  border-bottom: 3px solid #FF671F;
+}
+
+.ors-login-title {
+  font-size: 26px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.ors-login-subtitle {
+  font-size: 13.5px;
+  margin-top: 6px;
+  opacity: 0.95;
+  letter-spacing: 0.2px;
+  color: #e6f4f2;
+}
+
+.ors-modal-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.ors-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
+/* Tab Navigation — Deep Teal Institutional Options */
+.ors-tabs-container {
+  display: flex;
+  border-bottom: 2px solid #d7e7e4;
+  background: #edf7f5;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.ors-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 15px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ors-tab-btn:hover {
+  color: #0b6b63;
+  background-color: #e6f4f2;
+}
+
+.ors-tab-btn.active {
+  color: #074e48;
+  border-bottom-color: #0b6b63;
+  font-weight: 800;
+  background: #ffffff;
+  box-shadow: inset 0 -2px 0 #0b6b63;
+}
+
+/* Card Body Content — Scrollable internally so Proceed button is NEVER pushed away */
+.ors-card-body {
+  padding: 26px 36px 20px 36px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+}
+
+/* Radio Option Selectors */
+.ors-radio-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.ors-radio-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #1e293b;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ors-radio-label input[type="radio"] {
+  width: 17px;
+  height: 17px;
+  accent-color: #0b6b63;
+  cursor: pointer;
+  margin: 0;
+}
+
+/* Standard Inputs */
+.ors-input-group {
+  margin-bottom: 18px;
+  position: relative;
+}
+
+.ors-text-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 15px;
+  border: 1.5px solid #CBD5E1;
+  border-radius: 3px;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.ors-text-input:focus {
+  border-color: #0B1F3A;
+  box-shadow: 0 0 0 2px rgba(11, 31, 58, 0.1);
+}
+
+.ors-text-input::placeholder {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* Live Character Counter */
+.ors-char-counter {
+  display: block;
+  text-align: right;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 5px;
+  font-weight: 600;
+}
+
+/* Captcha Radio Mode Row */
+.ors-captcha-type-row {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 12px;
+}
+
+.ors-captcha-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.ors-captcha-radio input[type="radio"] {
+  accent-color: #0b6b63;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Captcha Visual Canvas & Refresh Container */
+.ors-captcha-display-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.ors-captcha-canvas-box {
+  background: #f0fdf4;
+  border: 1.5px solid #80c5bf;
+  border-radius: 6px;
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(7, 78, 72, 0.08);
+}
+
+.ors-captcha-canvas {
+  display: block;
+  border-radius: 3px;
+}
+
+.ors-captcha-refresh-btn {
+  background: #e6f4f2;
+  border: 1px solid #80c5bf;
+  cursor: pointer;
+  color: #074e48;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.ors-captcha-refresh-btn:hover {
+  background-color: #0b6b63;
+  color: #ffffff;
+  transform: rotate(60deg);
+}
+
+.ors-captcha-audio-btn {
+  background: #f0fdf4;
+  border: 1px solid #80c5bf;
+  color: #074e48;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.15s ease;
+}
+
+.ors-captcha-audio-btn:hover {
+  background: #0b6b63;
+  color: #ffffff;
+}
+
+/* Secondary Interactive Links */
+.ors-link-row {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.ors-action-link {
+  font-size: 13px;
+  color: #074e48;
+  text-decoration: none;
+  font-weight: 700;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.ors-action-link:hover {
+  text-decoration: underline;
+  background: #e6f4f2;
+  color: #0b6b63;
+}
+
+/* Sticky Card Footer — GUARANTEE Proceed button is ALWAYS visible & NEVER hidden by errors or overflow */
+.ors-card-footer {
+  padding: 16px 36px 20px;
+  border-top: 1px solid #cfe2df;
+  background: #ffffff;
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 25;
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+}
+
+/* Proceed Submit Button — Styled with Deep Teal and white text */
+.ors-proceed-btn {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.ors-proceed-btn.disabled {
+  background-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.ors-proceed-btn.active {
+  background: #0B1F3A;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.ors-proceed-btn.active:hover {
+  background: #143258;
+}
+
+.ors-proceed-btn.active:active {
+  transform: translateY(0);
+}
+
+/* Footer Link */
+.ors-footer-row {
+  text-align: center;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.ors-footer-link {
+  font-size: 12.5px;
+  color: #074e48;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.ors-footer-link:hover {
+  text-decoration: underline;
+  color: #0b6b63;
+}
+
+/* ORS Modal Overlay */
+.ors-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(6, 24, 42, 0.65);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  animation: orsFadeIn 0.2s ease-out;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.ors-modal-dialog-box {
+  width: 100%;
+  max-width: 1040px;
+  max-height: calc(100vh - 36px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+@keyframes orsFadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Top Navigation Yellow Pill Button (matching ORS screenshot) */
+.ors-nav-login-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #f59e0b;
+  color: #1e293b;
+  border: 1.5px solid #d97706;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+  transition: all 0.15s ease-in-out;
+  white-space: nowrap;
+}
+
+.ors-nav-login-pill:hover {
+  background-color: #d97706;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(217, 119, 6, 0.35);
+}
+
+.ors-nav-login-pill:active {
+  transform: translateY(0);
+}
+
+/* Quick Role Select Chips for Staff/Doctor/Admin */
+.ors-staff-quick-box {
+  background: #f0fdf4;
+  border: 1px solid #80c5bf;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 18px;
+}
+
+.ors-staff-quick-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #074e48;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.ors-staff-quick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ors-staff-quick-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ors-staff-quick-btn:hover {
+  border-color: #0b6b63;
+  background: #e6f4f2;
+}
+
+/* Alert Notification Inside ORS Card — Compact & High Visibility */
+.ors-alert {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.ors-alert-error {
+  background-color: #fef2f2;
+  border: 1.5px solid #fca5a5;
+  color: #991b1b;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(185, 28, 28, 0.08);
+}
+
+.ors-alert-success {
+  background-color: #f0fdf4;
+  border: 1.5px solid #86efac;
+  color: #15803d;
+  font-weight: 600;
+}
+
+/* Educational Info Dialog (Benefits / Create ABHA) */
+.ors-info-card {
+  max-width: 540px;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  border: 1.5px solid #80c5bf;
+}
+
+.ors-info-list {
+  padding-left: 20px;
+  margin: 14px 0 20px 0;
+  font-size: 13.5px;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.ors-info-list li {
+  margin-bottom: 10px;
+}
+
+/* ==========================================================================
+   PHONE & MOBILE VIEW COMPATIBILITY — Proceed Button Always Visible
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .ors-login-card {
+    max-height: 88vh;
+    border-radius: 10px;
+  }
+  .ors-login-header {
+    padding: 16px 20px;
+  }
+  .ors-login-title {
+    font-size: 20px;
+  }
+  .ors-tab-btn {
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+  .ors-card-body {
+    padding: 16px 20px 14px;
+  }
+  .ors-card-footer {
+    padding: 12px 20px 16px;
+  }
+  .ors-proceed-btn {
+    padding: 12px 16px;
+    font-size: 14.5px;
+  }
+}
+
+/* Specific styling when rendered inside the Smartphone Frame */
+.smartphone-chassis .ors-view-login-container,
+.smartphone-chassis .ors-login-wrapper {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.smartphone-chassis .ors-login-card {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  max-height: 100%;
+  height: 100%;
+}
+
+.smartphone-chassis .ors-login-header {
+  padding: 14px 16px;
+}
+
+.smartphone-chassis .ors-login-title {
+  font-size: 18px;
+}
+
+.smartphone-chassis .ors-tab-btn {
+  padding: 10px 4px;
+  font-size: 11px;
+  gap: 4px;
+}
+
+.smartphone-chassis .ors-card-body {
+  padding: 14px 16px;
+  flex: 1 1 auto;
+}
+
+.smartphone-chassis .ors-card-footer {
+  padding: 10px 16px 14px;
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  background: #ffffff;
+  box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.08);
+}

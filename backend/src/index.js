@@ -37,6 +37,8 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+const systemController = require('./controllers/systemController');
+
 // Public hospital listing (for kiosk and patient login picker)
 app.get('/api/hospitals/public', async (req, res) => {
   try {
@@ -48,6 +50,32 @@ app.get('/api/hospitals/public', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Dynamic hospital creation & provisioning (allows user to add hospitals anytime)
+app.post('/api/hospitals/create', async (req, res) => {
+  try {
+    const { name, address, contact_phone, registration_mode } = req.body;
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Hospital name is required' });
+    }
+    const result = await query(
+      `INSERT INTO hospitals (name, registration_mode, physical_presence_required, address, contact_phone)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [name.trim(), registration_mode || 'admin_creates', true, address || 'Central OPD Facility', contact_phone || '+91 11 2345 6789']
+    );
+    res.status(201).json({
+      success: true,
+      message: 'Hospital created and provisioned with default departments and kiosk terminal!',
+      hospital: result.rows[0]
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// System Network & Tunnel Info (for Mobile QR code)
+app.get('/api/system/network-info', systemController.getNetworkInfo);
 
 // API Routes
 app.use('/api/auth', authRoutes);

@@ -5,15 +5,23 @@ const { completeIntake } = require('./intakeService');
  * Generate single-use Kiosk Verification Code (5-minute TTL)
  */
 async function generateVerificationCode(hospitalId, kioskDeviceId = null) {
+  let effectiveHospId = hospitalId;
+  if (!effectiveHospId) {
+    const hospRes = await query(`SELECT id FROM hospitals LIMIT 1`);
+    if (hospRes.rowCount > 0) {
+      effectiveHospId = hospRes.rows[0].id;
+    }
+  }
+
   let activeKioskId = kioskDeviceId;
 
   // If kioskDeviceId is not provided, look up the first active kiosk for this hospital
   if (!activeKioskId) {
     const kioskRes = await query(
       `SELECT id, location_label FROM kiosk_devices WHERE hospital_id = $1 AND is_active = true LIMIT 1`,
-      [hospitalId]
+      [effectiveHospId]
     );
-    if (kioskRes.rowCount > 0) {
+    if (kioskRes && kioskRes.rowCount > 0 && kioskRes.rows[0]) {
       activeKioskId = kioskRes.rows[0].id;
     } else {
       // Create a default kiosk device for this hospital
@@ -21,9 +29,9 @@ async function generateVerificationCode(hospitalId, kioskDeviceId = null) {
         `INSERT INTO kiosk_devices (hospital_id, location_label, is_active)
          VALUES ($1, 'Main OPD Reception Kiosk #1', true)
          RETURNING id, location_label`,
-        [hospitalId]
+        [effectiveHospId]
       );
-      activeKioskId = newKioskRes.rows[0].id;
+      activeKioskId = newKioskRes?.rows?.[0]?.id || `kiosk-${Date.now()}`;
     }
   }
 

@@ -1,9 +1,14 @@
 const bcrypt = require('bcryptjs');
-const { pool, query } = require('./index');
+const { pool, query, checkPostgresAvailability } = require('./index');
 
 async function seed() {
   console.log('[Seed] Starting database seeding...');
   try {
+    const pgReady = await checkPostgresAvailability();
+    if (!pgReady) {
+      throw new Error('PostgreSQL is not available. Run the app for in-memory demo data, or start PostgreSQL before seeding.');
+    }
+
     // 1. Seed Modules
     const moduleKeys = ['patients', 'cases', 'staff', 'roles', 'hospitals', 'reports', 'documents'];
     const moduleMap = {};

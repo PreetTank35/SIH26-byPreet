@@ -27,3 +27,9 @@ Thumbs.db
 # Project Docs & Dumps
 dump/
 scratch/
+
+# Archives & Temp Uploads
+*.zip
+*.exe
+backend/uploads/*
+!backend/uploads/.gitkeep

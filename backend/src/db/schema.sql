@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS cases (
   department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
   department_resolved_by TEXT CHECK (department_resolved_by IN ('patient_selected','auto_routed')) NULL,
   chief_complaint TEXT,
+  clinical_report JSONB NULL,
   status TEXT CHECK (status IN ('intake','ready_for_doctor','in_consult','completed')) DEFAULT 'intake',
   assigned_doctor_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -152,7 +153,7 @@ CREATE TABLE IF NOT EXISTS case_responses (
   case_id UUID REFERENCES cases(id) ON DELETE CASCADE,
   question_id TEXT NOT NULL,
   answer_text TEXT NOT NULL,
-  answer_type TEXT CHECK (answer_type IN ('voice','touch')) DEFAULT 'touch',
+  answer_type TEXT CHECK (answer_type IN ('voice','touch','text','ai_inquiry')) DEFAULT 'touch',
   raw_audio_ref TEXT NULL,
   extracted_via_llm BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()

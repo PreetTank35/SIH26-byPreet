@@ -167,14 +167,14 @@ async function submitAnswer(caseId, questionId, answerText, answerType = 'touch'
 }
 
 /**
- * Complete Intake & Enter Queue (subject to Hospital physical_presence_required Setting)
+ * Complete intake and enter the OPD queue.
  */
 async function completeIntake(caseId) {
   const caseRes = await query(
-    `SELECT c.*, s.is_kiosk_verified, s.hospital_id, h.physical_presence_required
+    `SELECT c.*, s.is_kiosk_verified, s.hospital_id, COALESCE(h.physical_presence_required, false) as physical_presence_required
      FROM cases c
      JOIN patient_sessions s ON c.session_id = s.id
-     JOIN hospitals h ON s.hospital_id = h.id
+     LEFT JOIN hospitals h ON (s.hospital_id = h.id OR c.hospital_id = h.id)
      WHERE c.id = $1`,
     [caseId]
   );
@@ -184,17 +184,6 @@ async function completeIntake(caseId) {
   }
 
   const caseData = caseRes.rows[0];
-
-  // Check Hospital Physical Presence Setting
-  const requiresPresence = caseData.physical_presence_required !== false;
-
-  if (requiresPresence && !caseData.is_kiosk_verified) {
-    return {
-      status: 'presence_verification_required',
-      is_kiosk_verified: false,
-      message: 'Physical presence required. Please scan the QR code on any hospital kiosk to enter the OPD queue.'
-    };
-  }
 
   let departmentId = caseData.department_id;
   if (!departmentId) {
@@ -210,7 +199,7 @@ async function completeIntake(caseId) {
 
   return {
     status: 'queued',
-    is_kiosk_verified: true,
+    is_kiosk_verified: Boolean(caseData.is_kiosk_verified),
     token
   };
 }

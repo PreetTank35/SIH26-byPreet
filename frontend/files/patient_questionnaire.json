@@ -1,0 +1,488 @@
+{
+  "questionnaire": {
+    "title": "Patient Intake & Medical History Questionnaire",
+    "version": "1.0",
+    "description": "Structured, branching patient inquiry form for a healthcare website. Each question has a unique id, an answer type, validation rules, and optional conditional follow-up questions that render based on the parent answer.",
+    "answer_types": ["text", "textarea", "number", "date", "single_select", "multi_select", "file_upload", "scale"],
+    "sections": [
+      {
+        "section_id": "S1",
+        "title": "Patient Personal Details",
+        "questions": [
+          {
+            "id": "Q1.1",
+            "text": "Full Name",
+            "type": "text",
+            "required": true,
+            "validation": { "min_length": 2, "max_length": 100, "pattern": "^[A-Za-z .'-]+$" }
+          },
+          {
+            "id": "Q1.2",
+            "text": "Date of Birth",
+            "type": "date",
+            "required": true,
+            "validation": { "max_date": "today" }
+          },
+          {
+            "id": "Q1.3",
+            "text": "Gender",
+            "type": "single_select",
+            "required": true,
+            "options": ["Male", "Female", "Non-binary", "Prefer not to say"]
+          },
+          {
+            "id": "Q1.4",
+            "text": "Phone Number",
+            "type": "text",
+            "required": true,
+            "validation": { "pattern": "^[+]?[0-9]{10,15}$" }
+          },
+          {
+            "id": "Q1.5",
+            "text": "Email Address",
+            "type": "text",
+            "required": false,
+            "validation": { "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" }
+          },
+          {
+            "id": "Q1.6",
+            "text": "Emergency Contact Name",
+            "type": "text",
+            "required": true,
+            "validation": { "max_length": 100 }
+          },
+          {
+            "id": "Q1.7",
+            "text": "Emergency Contact Phone",
+            "type": "text",
+            "required": true,
+            "validation": { "pattern": "^[+]?[0-9]{10,15}$" }
+          },
+          {
+            "id": "Q1.8",
+            "text": "Relationship to Emergency Contact",
+            "type": "single_select",
+            "required": true,
+            "options": ["Spouse", "Parent", "Child", "Sibling", "Friend", "Other"]
+          }
+        ]
+      },
+      {
+        "section_id": "S2",
+        "title": "Chief Complaint / Reason for Visit",
+        "questions": [
+          {
+            "id": "Q2.1",
+            "text": "What symptoms are you experiencing?",
+            "type": "multi_select",
+            "required": true,
+            "options": ["Fever", "Pain", "Cough", "Fatigue", "Nausea/Vomiting", "Shortness of breath", "Dizziness", "Skin issue", "Other"],
+            "follow_up": [
+              { "trigger": "Other", "show": ["Q2.1a"] },
+              { "trigger": "Pain", "show": ["Q2.1b"] }
+            ]
+          },
+          {
+            "id": "Q2.1a",
+            "text": "Please describe the symptom",
+            "type": "textarea",
+            "required": true,
+            "validation": { "max_length": 500 },
+            "parent": "Q2.1"
+          },
+          {
+            "id": "Q2.1b",
+            "text": "Pain location and scale (1-10)",
+            "type": "scale",
+            "required": true,
+            "validation": { "min": 1, "max": 10 },
+            "parent": "Q2.1"
+          },
+          {
+            "id": "Q2.2",
+            "text": "How long have you had these symptoms?",
+            "type": "single_select",
+            "required": true,
+            "options": ["< 24 hours", "1-3 days", "4-7 days", "1-2 weeks", "> 2 weeks"],
+            "follow_up": [
+              { "trigger": "> 2 weeks", "show": ["Q2.2a", "Q2.2b", "Q2.2c"] }
+            ]
+          },
+          {
+            "id": "Q2.2a",
+            "text": "Have symptoms gotten better, worse, or stayed the same?",
+            "type": "single_select",
+            "required": true,
+            "options": ["Improving", "Worsening", "Unchanged", "Fluctuating"],
+            "parent": "Q2.2"
+          },
+          {
+            "id": "Q2.2b",
+            "text": "Any associated symptoms since onset?",
+            "type": "multi_select",
+            "required": false,
+            "options": ["Weight loss", "Night sweats", "Loss of appetite", "Swelling", "Rash", "Other"],
+            "parent": "Q2.2"
+          },
+          {
+            "id": "Q2.2c",
+            "text": "What treatments have you already tried?",
+            "type": "textarea",
+            "required": false,
+            "validation": { "max_length": 500 },
+            "parent": "Q2.2"
+          },
+          {
+            "id": "Q2.3",
+            "text": "Overall severity (1 = mild, 10 = severe)",
+            "type": "scale",
+            "required": true,
+            "validation": { "min": 1, "max": 10 }
+          }
+        ]
+      },
+      {
+        "section_id": "S3",
+        "title": "Medical History",
+        "questions": [
+          {
+            "id": "Q3.1",
+            "text": "Do you have any chronic conditions?",
+            "type": "multi_select",
+            "required": true,
+            "options": ["None", "Diabetes", "Hypertension", "Asthma", "Heart disease", "Thyroid disorder", "Kidney disease", "Other"],
+            "follow_up": [
+              { "trigger": "any_except_None", "show": ["Q3.1a", "Q3.1b", "Q3.1c"] }
+            ]
+          },
+          {
+            "id": "Q3.1a",
+            "text": "Is the condition currently well-controlled?",
+            "type": "single_select",
+            "required": true,
+            "options": ["Well controlled", "Partially controlled", "Poorly controlled", "Unsure"],
+            "parent": "Q3.1"
+          },
+          {
+            "id": "Q3.1b",
+            "text": "Any recent complications related to this condition?",
+            "type": "textarea",
+            "required": false,
+            "validation": { "max_length": 500 },
+            "parent": "Q3.1"
+          },
+          {
+            "id": "Q3.1c",
+            "text": "Are you under specialist care for this? If yes, specialist name/clinic",
+            "type": "text",
+            "required": false,
+            "validation": { "max_length": 150 },
+            "parent": "Q3.1"
+          },
+          {
+            "id": "Q3.2",
+            "text": "Have you had any past surgeries?",
+            "type": "single_select",
+            "required": true,
+            "options": ["Yes", "No"],
+            "follow_up": [
+              { "trigger": "Yes", "show": ["Q3.2a"] }
+            ]
+          },
+          {
+            "id": "Q3.2a",
+            "text": "List surgeries with approximate year",
+            "type": "textarea",
+            "required": true,
+            "validation": { "max_length": 500 },
+            "parent": "Q3.2"
+          },
+          {
+            "id": "Q3.3",
+            "text": "Do you have any known allergies?",
+            "type": "single_select",
+            "required": true,
+            "options": ["Yes", "No"],
+            "follow_up": [
+              { "trigger": "Yes", "show": ["Q3.3a", "Q3.3b", "Q3.3c"] }
+            ]
+          },
+          {
+            "id": "Q3.3a",
+            "text": "Type of allergy",
+            "type": "multi_select",
+            "required": true,
+            "options": ["Drug/Medication", "Food", "Environmental", "Latex", "Other"],
+            "parent": "Q3.3"
+          },
+          {
+            "id": "Q3.3b",
+            "text": "Reaction severity",
+            "type": "single_select",
+            "required": true,
+            "options": ["Mild (rash/itching)", "Moderate (swelling/hives)", "Severe (anaphylaxis)"],
+            "parent": "Q3.3"
+          },
+          {
+            "id": "Q3.3c",
+            "text": "How is the allergy currently managed?",
+            "type": "textarea",
+            "required": false,
+            "validation": { "max_length": 300 },
+            "parent": "Q3.3"
+          }
+        ]
+      },
+      {
+        "section_id": "S4",
+        "title": "Current Medications & Supplements",
+        "questions": [
+          {
+            "id": "Q4.1",
+            "text": "Are you currently taking any medications or supplements?",
+            "type": "single_select",
+            "required": true,
+            "options": ["Yes", "No"],
+            "follow_up": [
+              { "trigger": "Yes", "show": ["Q4.1a", "Q4.1b", "Q4.1c", "Q4.1d"] }
+            ]
+          },
+          {
+            "id": "Q4.1a",
+            "text": "List medications/supplements (name)",
+            "type": "textarea",
+            "required": true,
+            "validation": { "max_length": 500 },
+            "parent": "Q4.1"
+          },
+          {
+            "id": "Q4.1b",
+            "text": "Dosage and frequency for each",
+            "type": "textarea",
+            "required": true,
+            "validation": { "max_length": 500 },
+            "parent": "Q4.1"
+          },
+          {
+            "id": "Q4.1c",
+            "text": "Do you ever miss doses or stop taking them early?",
+            "type": "single_select",
+            "required": false,
+            "options": ["Never", "Occasionally", "Frequently"],
+            "parent": "Q4.1"
+          },
+          {
+            "id": "Q4.1d",
+            "text": "Any side effects experienced?",
+            "type": "textarea",
+            "required": false,
+            "validation": { "max_length": 300 },
+            "parent": "Q4.1"
+          }
+        ]
+      },
+      {
+        "section_id": "S5",
+        "title": "Family Medical History",
+        "questions": [
+          {
+            "id": "Q5.1",
+            "text": "Does any immediate family member have a history of major illness (e.g., diabetes, heart disease, cancer)?",
+            "type": "single_select",
+            "required": true,
+            "options": ["Yes", "No", "Unsure"],
+            "follow_up": [
+              { "trigger": "Yes", "show": ["Q5.1a", "Q5.1b", "Q5.1c"] }
+            ]
+          },
+          {
+            "id": "Q5.1a",
+            "text": "Which relative(s) and condition(s)?",
+            "type": "textarea",
+            "required": true,
+            "validation": { "max_length": 500 },
+            "parent": "Q5.1"
+          },
+          {
+            "id": "Q5.1b",
+            "text": "Approximate age of onset for the relative",
+            "type": "text",
+            "required": false,
+            "validation": { "max_length": 50 },
+            "parent": "Q5.1"
+          },
+          {
+            "id": "Q5.1c",
+            "text": "Has any genetic testing been done in the family?",
+            "type": "single_select",
+            "required": false,
+            "options": ["Yes", "No", "Unsure"],
+            "parent": "Q5.1"
+          }
+        ]
+      },
+      {
+        "section_id": "S6",
+        "title": "Lifestyle Factors",
+        "questions": [
+          {
+            "id": "Q6.1",
+            "text": "Smoking status",
+            "type": "single_select",
+            "required": true,
+            "options": ["Never", "Former smoker", "Current smoker"],
+            "follow_up": [
+              { "trigger": "Current smoker", "show": ["Q6.risk_a", "Q6.risk_b", "Q6.risk_c"] },
+              { "trigger": "Former smoker", "show": ["Q6.risk_a"] }
+            ]
+          },
+          {
+            "id": "Q6.2",
+            "text": "Alcohol consumption",
+            "type": "single_select",
+            "required": true,
+            "options": ["Never", "Occasionally", "Weekly", "Daily"],
+            "follow_up": [
+              { "trigger": ["Weekly", "Daily"], "show": ["Q6.risk_a", "Q6.risk_b", "Q6.risk_c"] }
+            ]
+          },
+          {
+            "id": "Q6.risk_a",
+            "text": "Are you willing to reduce/quit this habit?",
+            "type": "single_select",
+            "required": false,
+            "options": ["Yes", "No", "Already trying"],
+            "parent": "Q6.1 / Q6.2"
+          },
+          {
+            "id": "Q6.risk_b",
+            "text": "Have you made previous attempts to quit/reduce?",
+            "type": "single_select",
+            "required": false,
+            "options": ["Yes", "No"],
+            "parent": "Q6.1 / Q6.2"
+          },
+          {
+            "id": "Q6.risk_c",
+            "text": "Would you like support resources (counseling, cessation programs)?",
+            "type": "single_select",
+            "required": false,
+            "options": ["Yes", "No"],
+            "parent": "Q6.1 / Q6.2"
+          },
+          {
+            "id": "Q6.3",
+            "text": "Exercise frequency",
+            "type": "single_select",
+            "required": true,
+            "options": ["None", "1-2 times/week", "3-4 times/week", "5+ times/week"]
+          },
+          {
+            "id": "Q6.4",
+            "text": "Diet type",
+            "type": "single_select",
+            "required": false,
+            "options": ["Vegetarian", "Non-vegetarian", "Vegan", "Eggetarian", "Other"]
+          },
+          {
+            "id": "Q6.5",
+            "text": "Average sleep hours per night",
+            "type": "number",
+            "required": false,
+            "validation": { "min": 0, "max": 24 }
+          }
+        ]
+      },
+      {
+        "section_id": "S7",
+        "title": "Previous Diagnostic Reports",
+        "questions": [
+          {
+            "id": "Q7.1",
+            "text": "Do you have previous diagnostic reports or test results relevant to this visit?",
+            "type": "single_select",
+            "required": true,
+            "options": ["Yes", "No"],
+            "follow_up": [
+              { "trigger": "Yes", "show": ["Q7.1a", "Q7.1b"] }
+            ]
+          },
+          {
+            "id": "Q7.1a",
+            "text": "Upload report(s)",
+            "type": "file_upload",
+            "required": true,
+            "validation": { "accepted_formats": ["pdf", "jpg", "png"], "max_file_size_mb": 10, "max_files": 5 },
+            "parent": "Q7.1"
+          },
+          {
+            "id": "Q7.1b",
+            "text": "Date of report(s)",
+            "type": "date",
+            "required": false,
+            "parent": "Q7.1"
+          }
+        ]
+      },
+      {
+        "section_id": "S8",
+        "title": "Appointment Preference",
+        "questions": [
+          {
+            "id": "Q8.1",
+            "text": "Preferred appointment date",
+            "type": "date",
+            "required": true,
+            "validation": { "min_date": "today" }
+          },
+          {
+            "id": "Q8.2",
+            "text": "Preferred time slot",
+            "type": "single_select",
+            "required": true,
+            "options": ["Morning (9-12)", "Afternoon (12-4)", "Evening (4-8)"]
+          },
+          {
+            "id": "Q8.3",
+            "text": "Doctor specialization requested",
+            "type": "single_select",
+            "required": true,
+            "options": ["General Physician", "Cardiology", "Dermatology", "Orthopedics", "Pediatrics", "ENT", "Gynecology", "Psychiatry", "Other"]
+          }
+        ]
+      },
+      {
+        "section_id": "S9",
+        "title": "Insurance / Payment Information",
+        "questions": [
+          {
+            "id": "Q9.1",
+            "text": "Payment method",
+            "type": "single_select",
+            "required": true,
+            "options": ["Insurance", "Self-pay", "Corporate/Employer plan"],
+            "follow_up": [
+              { "trigger": "Insurance", "show": ["Q9.1a", "Q9.1b"] }
+            ]
+          },
+          {
+            "id": "Q9.1a",
+            "text": "Insurance provider name",
+            "type": "text",
+            "required": true,
+            "validation": { "max_length": 150 },
+            "parent": "Q9.1"
+          },
+          {
+            "id": "Q9.1b",
+            "text": "Policy number",
+            "type": "text",
+            "required": true,
+            "validation": { "max_length": 50 },
+            "parent": "Q9.1"
+          }
+        ]
+      }
+    ]
+  }
+}

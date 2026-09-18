@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 let isPgAvailable = false;
+let pgAvailabilityChecked = false;
 let pool = null;
 
 // Initialize PostgreSQL pool
@@ -14,10 +15,11 @@ try {
   });
 
   pool.on('error', (err) => {
-    // console.log('[PostgreSQL] Connection fallback to In-Memory store');
+    isPgAvailable = false;
+    console.warn('[PostgreSQL] Connection issue, using in-memory fallback:', err.message);
   });
 } catch (e) {
-  // console.log('[PostgreSQL] Pool initialization skipped');
+  console.warn('[PostgreSQL] Pool initialization skipped:', e.message);
 }
 
 // ==========================================
@@ -61,26 +63,43 @@ async function seedMemoryStore() {
     memoryStore.modules.push({ id: `mod-0000-0000-0000-${idx + 1}`, key });
   });
 
-  // 2. Hospital
+  // 2. Hospital 1
   const hospId = 'hosp-0000-0000-0000-0001';
   memoryStore.hospitals.push({
     id: hospId,
     name: 'District Civil & AYUSH Hospital, Central District',
     registration_mode: 'admin_creates',
+    physical_presence_required: true,
     address: 'Civil Lines, Rajpath Marg, New Delhi - 110001',
     contact_phone: '+91 11 2345 6789',
     created_at: new Date()
   });
 
-  // 3. Departments
+  // Hospital 2 (Pre-seeded for multi-hospital testing)
+  const hospId2 = 'hosp-0000-0000-0000-0002';
+  memoryStore.hospitals.push({
+    id: hospId2,
+    name: 'AIIMS New Delhi AYUSH & Integrative Health Center',
+    registration_mode: 'admin_creates',
+    physical_presence_required: true,
+    address: 'Ansari Nagar, Ring Road, New Delhi - 110029',
+    contact_phone: '+91 11 2658 8500',
+    created_at: new Date()
+  });
+
+  // 3. Departments for Hosp 1 & Hosp 2
   const depts = [
-    { id: 'dept-0001', name: 'General Medicine', is_active: true },
-    { id: 'dept-0002', name: 'AYUSH (Ayurveda & Panchakarma)', is_active: true },
-    { id: 'dept-0003', name: 'Orthopedics', is_active: true },
-    { id: 'dept-0004', name: 'Pediatrics', is_active: true }
+    { id: 'dept-0001', hospital_id: hospId, name: 'General Medicine', is_active: true },
+    { id: 'dept-0002', hospital_id: hospId, name: 'AYUSH (Ayurveda & Panchakarma)', is_active: true },
+    { id: 'dept-0003', hospital_id: hospId, name: 'Orthopedics', is_active: true },
+    { id: 'dept-0004', hospital_id: hospId, name: 'Pediatrics', is_active: true },
+    { id: 'dept-0005', hospital_id: hospId2, name: 'General Medicine', is_active: true },
+    { id: 'dept-0006', hospital_id: hospId2, name: 'AYUSH (Ayurveda & Panchakarma)', is_active: true },
+    { id: 'dept-0007', hospital_id: hospId2, name: 'Dermatology & Kayachikitsa', is_active: true },
+    { id: 'dept-0008', hospital_id: hospId2, name: 'Integrative Pediatrics', is_active: true }
   ];
   depts.forEach(d => {
-    memoryStore.departments.push({ id: d.id, hospital_id: hospId, name: d.name, is_active: d.is_active });
+    memoryStore.departments.push(d);
   });
 
   // 4. Roles
@@ -130,28 +149,39 @@ async function seedMemoryStore() {
   // 6. Users
   const drAyushId = 'user-dr-ayush';
   const drMedId = 'user-dr-med';
+  const drAiimsId = 'user-dr-aiims';
 
   memoryStore.users.push(
     { id: 'user-super', hospital_id: null, role_id: superRoleId, name: 'National Health Admin', email: 'superadmin@medikiosk.gov.in', phone: '9876500001', password_hash: defaultPasswordHash, status: 'active', created_at: new Date() },
     { id: 'user-admin', hospital_id: hospId, role_id: adminRoleId, name: 'Dr. Rajesh Sharma (Medical Superintendent)', email: 'admin@civildistrict.gov.in', phone: '9876500002', password_hash: defaultPasswordHash, status: 'active', created_at: new Date() },
     { id: drAyushId, hospital_id: hospId, department_id: 'dept-0002', role_id: doctorRoleId, name: 'Vaidya Ananya Deshmukh (BAMS, MD)', email: 'dr.ananya@civildistrict.gov.in', phone: '9876500003', password_hash: defaultPasswordHash, status: 'active', abha_id: '91-8822-1144-5501', created_at: new Date() },
-    { id: drMedId, hospital_id: hospId, department_id: 'dept-0001', role_id: doctorRoleId, name: 'Dr. Vikramaditya Verma (MBBS, MD)', email: 'dr.vikram@civildistrict.gov.in', phone: '9876500004', password_hash: defaultPasswordHash, status: 'active', abha_id: '91-7733-2255-6602', created_at: new Date() }
+    { id: drMedId, hospital_id: hospId, department_id: 'dept-0001', role_id: doctorRoleId, name: 'Dr. Vikramaditya Verma (MBBS, MD)', email: 'dr.vikram@civildistrict.gov.in', phone: '9876500004', password_hash: defaultPasswordHash, status: 'active', abha_id: '91-7733-2255-6602', created_at: new Date() },
+    { id: drAiimsId, hospital_id: hospId2, department_id: 'dept-0006', role_id: doctorRoleId, name: 'Dr. Priya Nair (MD Ayurveda, AIIMS)', email: 'dr.priya@aiims.gov.in', phone: '9876500005', password_hash: defaultPasswordHash, status: 'active', abha_id: '91-5544-3322-1100', created_at: new Date() }
   );
 
   // 7. Room Assignments
   const today = new Date().toISOString().split('T')[0];
   memoryStore.doctor_room_assignments.push(
     { id: 'room-001', doctor_id: drAyushId, room_number: 'Room 102 (AYUSH OPD)', assignment_date: today },
-    { id: 'room-002', doctor_id: drMedId, room_number: 'Room 105 (General Medicine)', assignment_date: today }
+    { id: 'room-002', doctor_id: drMedId, room_number: 'Room 105 (General Medicine)', assignment_date: today },
+    { id: 'room-003', doctor_id: drAiimsId, room_number: 'Room 201 (AIIMS AYUSH Wing)', assignment_date: today }
   );
 
-  // 8. Kiosk Device
-  memoryStore.kiosk_devices.push({
-    id: '00000000-0000-0000-0000-000000000001',
-    hospital_id: hospId,
-    location_label: 'Ground Floor Main OPD Reception Kiosk #1',
-    is_active: true
-  });
+  // 8. Kiosk Devices
+  memoryStore.kiosk_devices.push(
+    {
+      id: '00000000-0000-0000-0000-000000000001',
+      hospital_id: hospId,
+      location_label: 'Ground Floor Main OPD Reception Kiosk #1',
+      is_active: true
+    },
+    {
+      id: '00000000-0000-0000-0000-000000000002',
+      hospital_id: hospId2,
+      location_label: 'AIIMS Main Atrium Kiosk #1',
+      is_active: true
+    }
+  );
 
   // 9. Question Flows
   const genericTriageTree = {
@@ -247,16 +277,29 @@ async function seedMemoryStore() {
 
 seedMemoryStore();
 
+async function checkPostgresAvailability() {
+  if (!pool || pgAvailabilityChecked) return isPgAvailable;
+
+  pgAvailabilityChecked = true;
+  try {
+    await pool.query('SELECT 1');
+    isPgAvailable = true;
+    console.log('[PostgreSQL] Connected. Using persistent database.');
+  } catch (err) {
+    isPgAvailable = false;
+    console.warn('[PostgreSQL] Unavailable. Using in-memory demo store:', err.message);
+  }
+
+  return isPgAvailable;
+}
+
 // Main query executor with automatic PostgreSQL / Memory store switching
 const query = async (text, params = []) => {
+  await checkPostgresAvailability();
+
   // If PostgreSQL is active, use it
   if (pool && isPgAvailable) {
-    try {
-      const res = await pool.query(text, params);
-      return res;
-    } catch (err) {
-      // Fallback to memory store if pg error
-    }
+    return pool.query(text, params);
   }
 
   // Fallback In-Memory SQL Interpreter
@@ -271,6 +314,10 @@ function executeInMemoryQuery(sql, params) {
   if (clean.includes('FROM hospitals') && !clean.includes('JOIN')) {
     if (clean.includes('WHERE id = $1')) {
       const rows = memoryStore.hospitals.filter(h => h.id === params[0]);
+      if (rows.length === 0 && memoryStore.hospitals.length > 0) {
+        // Safe fallback so unknown/stale hospital IDs never break the user experience
+        return { rows: [memoryStore.hospitals[0]], rowCount: 1 };
+      }
       return { rows, rowCount: rows.length };
     }
     return { rows: memoryStore.hospitals, rowCount: memoryStore.hospitals.length };
@@ -333,6 +380,19 @@ function executeInMemoryQuery(sql, params) {
     return { rows: [newPat], rowCount: 1 };
   }
 
+  // 6b. UPDATE patients (Profile & ABHA ID)
+  if (clean.includes('UPDATE patients')) {
+    const patientId = params[4] || params[params.length - 1];
+    const target = memoryStore.patients.find(p => p.id === patientId);
+    if (target) {
+      if (params[0]) target.name = params[0];
+      if (params[1]) target.age = Number(params[1]);
+      if (params[2]) target.gender = params[2];
+      if (params[3]) target.abha_id = params[3];
+    }
+    return { rows: target ? [target] : [], rowCount: target ? 1 : 0 };
+  }
+
   // 7. Active Patient Session
   if (clean.includes('FROM patient_sessions') && clean.includes('WHERE patient_id = $1 AND hospital_id = $2')) {
     const rows = memoryStore.patient_sessions.filter(s => s.patient_id === params[0] && s.hospital_id === params[1] && s.status === 'active');
@@ -362,7 +422,7 @@ function executeInMemoryQuery(sql, params) {
     if (!session) return { rows: [], rowCount: 0 };
     const pat = memoryStore.patients.find(p => p.id === session.patient_id) || {};
     const hosp = memoryStore.hospitals.find(h => h.id === session.hospital_id) || {};
-    return { rows: [{ ...session, ...pat, hospital_name: hosp.name }], rowCount: 1 };
+    return { rows: [{ ...pat, ...session, id: session.id, patient_id: pat.id, hospital_name: hosp.name }], rowCount: 1 };
   }
 
   // 10. Question Flows lookup
@@ -408,6 +468,31 @@ function executeInMemoryQuery(sql, params) {
     return { rows: [{ ...latest, department_name: dept?.name, is_kiosk_verified: sess.is_kiosk_verified }], rowCount: 1 };
   }
 
+  // 13b. Case lookup by case ID: FROM cases c ... WHERE c.id = $1
+  if (clean.includes('FROM cases c') && clean.includes('WHERE c.id = $1')) {
+    const c = memoryStore.cases.find(x => x.id === params[0]);
+    if (!c) return { rows: [], rowCount: 0 };
+    const sess = memoryStore.patient_sessions.find(s => s.id === c.session_id || s.patient_id === c.session_id) || {};
+    const patient = memoryStore.patients.find(p => p.id === sess.patient_id || p.id === c.session_id) || {};
+    const hosp = memoryStore.hospitals.find(h => h.id === c.hospital_id || h.id === sess.hospital_id) || {};
+    const dept = memoryStore.departments.find(d => d.id === c.department_id);
+    return {
+      rows: [{
+        ...c,
+        is_kiosk_verified: Boolean(sess.is_kiosk_verified),
+        physical_presence_required: hosp.physical_presence_required,
+        department_name: dept?.name,
+        patient_id: patient.id,
+        patient_name: patient.name,
+        patient_phone: patient.phone,
+        patient_age: patient.age,
+        patient_gender: patient.gender,
+        patient_abha_id: patient.abha_id
+      }],
+      rowCount: 1
+    };
+  }
+
   // 14. INSERT INTO cases
   if (clean.includes('INSERT INTO cases')) {
     const newCase = {
@@ -441,6 +526,9 @@ function executeInMemoryQuery(sql, params) {
         target.status = 'in_consult';
       } else if (clean.includes('SET status = \'completed\'')) {
         target.status = 'completed';
+      } else if (clean.includes('clinical_report = $2')) {
+        target.chief_complaint = params[0];
+        target.clinical_report = params[1];
       }
     }
     return { rows: target ? [target] : [], rowCount: target ? 1 : 0 };
@@ -683,16 +771,131 @@ function executeInMemoryQuery(sql, params) {
     return { rows: memoryStore.registration_requests, rowCount: memoryStore.registration_requests.length };
   }
 
+  // Kiosk Devices lookup
+  if (clean.includes('FROM kiosk_devices')) {
+    let list = memoryStore.kiosk_devices;
+    if (params && params[0]) {
+      const filtered = list.filter(k => k.hospital_id === params[0] && (k.is_active !== false));
+      if (filtered.length > 0) list = filtered;
+    }
+    if (list.length === 0 && memoryStore.kiosk_devices.length > 0) {
+      list = [memoryStore.kiosk_devices[0]];
+    }
+    return { rows: list, rowCount: list.length };
+  }
+
+  // INSERT INTO kiosk_devices
+  if (clean.includes('INSERT INTO kiosk_devices')) {
+    const newKiosk = {
+      id: `kiosk-${Date.now()}`,
+      hospital_id: params[0],
+      location_label: params[1] || 'Main OPD Reception Kiosk #1',
+      is_active: params[2] !== false
+    };
+    memoryStore.kiosk_devices.push(newKiosk);
+    return { rows: [newKiosk], rowCount: 1 };
+  }
+
+  // INSERT INTO kiosk_verification_codes
+  if (clean.includes('INSERT INTO kiosk_verification_codes')) {
+    const newCode = {
+      id: `kvc-${Date.now()}`,
+      kiosk_device_id: params[0],
+      code: params[1],
+      expires_at: params[2] || new Date(Date.now() + 5 * 60 * 1000),
+      session_id: null,
+      used_at: null,
+      created_at: new Date()
+    };
+    memoryStore.kiosk_verification_codes.push(newCode);
+    return { rows: [newCode], rowCount: 1 };
+  }
+
+  // SELECT FROM kiosk_verification_codes
+  if (clean.includes('FROM kiosk_verification_codes')) {
+    const code = (params[0] || '').trim().toUpperCase();
+    const rows = memoryStore.kiosk_verification_codes.filter(c => 
+      c.code && c.code.toUpperCase() === code && !c.used_at
+    );
+    return { rows, rowCount: rows.length };
+  }
+
+  // UPDATE kiosk_verification_codes
+  if (clean.includes('UPDATE kiosk_verification_codes')) {
+    const sessId = params[0];
+    const codeId = params[1];
+    const target = memoryStore.kiosk_verification_codes.find(c => c.id === codeId || c.code === codeId);
+    if (target) {
+      target.used_at = new Date();
+      target.session_id = sessId;
+    }
+    return { rows: target ? [target] : [], rowCount: target ? 1 : 0 };
+  }
+
+  // UPDATE patient_sessions (e.g. is_kiosk_verified = true)
+  if (clean.includes('UPDATE patient_sessions')) {
+    const sessId = params[params.length - 1] || params[0];
+    const target = memoryStore.patient_sessions.find(s => s.id === sessId || s.token === sessId);
+    if (target) {
+      if (clean.toLowerCase().includes('is_kiosk_verified = true')) {
+        target.is_kiosk_verified = true;
+      }
+    }
+    return { rows: target ? [target] : [], rowCount: target ? 1 : 0 };
+  }
+
+  // INSERT INTO hospitals with full auto-provisioning
   if (clean.includes('INSERT INTO hospitals')) {
+    const hospId = `hosp-${Date.now()}`;
     const newH = {
-      id: `hosp-${Date.now()}`,
+      id: hospId,
       name: params[0],
       registration_mode: params[1] || 'admin_creates',
-      address: params[2],
-      contact_phone: params[3],
+      physical_presence_required: params[2] !== false,
+      address: params[3] || 'Civil Lines, Health Center',
+      contact_phone: params[4] || '+91 11 2345 6789',
       created_at: new Date()
     };
     memoryStore.hospitals.push(newH);
+
+    // Auto-provision standard departments for this hospital
+    const defaultDepts = [
+      { id: `dept-${hospId}-01`, hospital_id: hospId, name: 'General Medicine', is_active: true },
+      { id: `dept-${hospId}-02`, hospital_id: hospId, name: 'AYUSH (Ayurveda & Panchakarma)', is_active: true },
+      { id: `dept-${hospId}-03`, hospital_id: hospId, name: 'Orthopedics', is_active: true },
+      { id: `dept-${hospId}-04`, hospital_id: hospId, name: 'Pediatrics', is_active: true }
+    ];
+    defaultDepts.forEach(d => {
+      memoryStore.departments.push(d);
+    });
+
+    // Auto-provision default kiosk device
+    memoryStore.kiosk_devices.push({
+      id: `kiosk-${hospId}-01`,
+      hospital_id: hospId,
+      location_label: `${params[0]} - Main OPD Kiosk #1`,
+      is_active: true
+    });
+
+    // Auto-provision standard triage routing rules
+    const symptomDeptPairs = [
+      { tag: 'chest_pain', deptId: `dept-${hospId}-01`, priority: 100 },
+      { tag: 'cough_breathlessness', deptId: `dept-${hospId}-01`, priority: 90 },
+      { tag: 'joint_pain', deptId: `dept-${hospId}-02`, priority: 85 },
+      { tag: 'fever', deptId: `dept-${hospId}-01`, priority: 80 },
+      { tag: 'abdominal_pain', deptId: `dept-${hospId}-01`, priority: 75 },
+      { tag: 'headache', deptId: `dept-${hospId}-01`, priority: 70 }
+    ];
+    symptomDeptPairs.forEach((pair, idx) => {
+      memoryStore.department_routing_rules.push({
+        id: `rule-${hospId}-${idx + 1}`,
+        hospital_id: hospId,
+        symptom_tag: pair.tag,
+        department_id: pair.deptId,
+        priority: pair.priority
+      });
+    });
+
     return { rows: [newH], rowCount: 1 };
   }
 
@@ -711,5 +914,6 @@ module.exports = {
   query,
   getClient,
   pool,
+  checkPostgresAvailability,
   memoryStore
 };

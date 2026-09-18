@@ -1,5 +1,6 @@
 const queueService = require('../services/queueService');
 const prescriptionService = require('../services/prescriptionService');
+const abhaMockService = require('../services/abhaMockService');
 const { query } = require('../db');
 
 /**
@@ -97,11 +98,19 @@ async function getCaseConsultDetail(req, res) {
     // 4. Fetch prior history for this durable patient
     const priorHistory = await prescriptionService.getPatientHistory(caseData.patient_id, caseData.hospital_id);
 
+    // 5. Fetch mock ABHA ABDM records if abha_id available
+    let abhaHistory = [];
+    if (caseData.patient_abha_id) {
+      const abhaData = await abhaMockService.fetchAbhaHistory(caseData.patient_abha_id);
+      abhaHistory = abhaData.records || [];
+    }
+
     res.json({
       case: caseData,
       transcript: responsesRes.rows,
       documents: docsRes.rows,
-      prior_history: priorHistory.filter(h => h.id !== caseId)
+      prior_history: priorHistory.filter(h => h.id !== caseId),
+      abha_history: abhaHistory
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

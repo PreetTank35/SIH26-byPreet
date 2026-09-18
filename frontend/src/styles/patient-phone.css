@@ -1,42 +1,401 @@
-/* Patient Mobile PWA Styles per PRD Section 4 & 5 */
-.phone-pwa-container {
-  max-width: 480px;
-  margin: 0 auto;
-  min-height: 100vh;
-  background-color: #FFFFFF;
+/* ==========================================================================
+   PATIENT PHONE VIEW — OFFICIAL GOVERNMENT RESPONSIVE PORTAL
+   Compliant with GIGW 3.0 & Patient-First Minimalism
+   Zero Fake Mockup Bezels, Single Natural Vertical Scroll Container
+   ========================================================================== */
+
+.patient-phone-root {
+  width: 100%;
+  height: 100%;
   display: flex;
-  flex-direction: column;
-  box-shadow: 0 0 20px rgba(0,0,0,0.08);
+  justify-content: center;
+  align-items: stretch;
+  background-color: var(--gov-bg);
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
-.phone-pwa-header {
-  background-color: var(--gov-primary);
+.patient-phone-container {
+  width: 100%;
+  max-width: 580px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #FFFFFF;
+  border-left: 1px solid var(--gov-border);
+  border-right: 1px solid var(--gov-border);
+  box-shadow: none;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* Official Header Banner */
+.patient-phone-header {
+  background-color: #0B1F3A;
   color: #FFFFFF;
-  padding: 16px;
+  padding: 12px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 3px solid #FF671F;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.patient-phone-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.patient-phone-logo-badge {
+  width: 36px;
+  height: 36px;
+  background-color: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.patient-phone-main-heading {
+  font-size: 16px;
+  font-weight: 800;
+  color: #FFFFFF;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.patient-phone-sub-heading {
+  font-size: 11.5px;
+  color: #CBD5E1;
+  margin-top: 1px;
+}
+
+/* Single-Scroll Body Container */
+.patient-phone-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 20px 24px;
+  box-sizing: border-box;
+  background-color: #FFFFFF;
+}
+
+/* Header Context Banner inside Forms */
+.phone-context-banner {
+  background-color: #0B1F3A;
+  color: #FFFFFF;
+  padding: 14px 18px;
+  border-radius: 3px;
+  border-left: 4px solid #FF671F;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.phone-context-badge {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.phone-context-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.phone-context-subtitle {
+  font-size: 12px;
+  color: #E2E8F0;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+/* Auth Container */
+.phone-auth-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.phone-method-selection-wrap {
+  margin-top: 6px;
+}
+
+.phone-auth-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-field-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0B1F3A;
+  margin-bottom: 8px;
+}
+
+.phone-input-voice-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  width: 100%;
+}
+
+.phone-input-prefix-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.phone-main-input {
+  flex: 1;
+  padding: 14px 14px 14px 42px !important;
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  border: 1.5px solid var(--gov-border-strong) !important;
+  border-radius: 3px !important;
+  color: #0B1F3A !important;
+  min-height: 52px;
+}
+
+.phone-main-input:focus {
+  border-color: #0B1F3A !important;
+  outline: none;
+}
+
+.phone-tel-prefix {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0B1F3A;
+  padding: 14px 12px;
+  background-color: var(--gov-surface-subtle);
+  border: 1.5px solid var(--gov-border-strong);
+  border-right: none;
+  border-radius: 3px 0 0 3px;
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+}
+
+.phone-tel-input {
+  padding-left: 14px !important;
+  border-radius: 0 3px 3px 0 !important;
+}
+
+.phone-field-mic-btn {
+  width: 52px;
+  height: 52px;
+  background-color: #0B1F3A;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.12s ease;
+}
+
+.phone-field-mic-btn:hover {
+  background-color: #143258;
+}
+
+/* Plain Sub-links Row */
+.phone-sub-links-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-top: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.phone-content {
-  padding: 20px 16px;
-  flex: 1;
+.phone-plain-link {
+  background: none;
+  border: none;
+  color: #0B1F3A;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 0;
 }
 
-/* Waiting Room Call Card */
-.waiting-room-hero {
-  background: linear-gradient(135deg, #0B3D91 0%, #155799 100%);
-  color: #FFFFFF;
-  border-radius: var(--radius-xl);
-  padding: 28px 20px;
+.phone-plain-link:hover {
+  color: #FF671F;
+}
+
+.phone-info-trigger {
+  background: none;
+  border: none;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.phone-info-trigger:hover {
+  color: #0B1F3A;
+}
+
+.phone-secondary-link {
+  background: none;
+  border: none;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.phone-secondary-link:hover {
+  color: #0B1F3A;
+  text-decoration: underline;
+}
+
+/* Sticky Proceed CTA Container */
+.phone-sticky-cta-wrap {
+  margin-top: 24px;
+  position: sticky;
+  bottom: 0;
+  background: #FFFFFF;
+  padding-top: 12px;
+  padding-bottom: 8px;
+  z-index: 50;
+  border-top: none;
+}
+
+.phone-cta-helper-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #B91C1C;
   text-align: center;
-  margin-bottom: 24px;
-  box-shadow: var(--shadow-md);
+  margin-bottom: 8px;
+}
+
+.phone-proceed-btn {
+  width: 100%;
+  min-height: 54px !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  border-radius: 3px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  background-color: #0B1F3A !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.phone-proceed-btn:hover:not(:disabled) {
+  background-color: #143258 !important;
+}
+
+.phone-proceed-btn:disabled {
+  background-color: #E2E8F0 !important;
+  color: #94A3B8 !important;
+  cursor: not-allowed !important;
+}
+
+.phone-notice-pill {
+  padding: 10px 14px;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.phone-notice-pill.success {
+  background-color: #E8F5E9;
+  color: #046A38;
+  border: 1px solid #81C784;
+}
+
+.phone-notice-pill.abha {
+  background-color: #EBF2FA;
+  color: #0B1F3A;
+  border: 1px solid #9BB8D7;
+}
+
+/* Modal backdrop for What is ABHA dialog */
+.gov-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(11, 31, 58, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.gov-modal-box {
+  background-color: #FFFFFF;
+  border-radius: 4px;
+  border: 1px solid var(--gov-border-strong);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  width: 100%;
+}
+
+/* Responsive Real Phone Adaptation */
+@media (max-width: 640px) {
+  .patient-phone-container {
+    max-width: 100%;
+    border-left: none;
+    border-right: none;
+  }
+  .patient-phone-body {
+    padding: 14px 16px 20px;
+  }
+}
+
+/* Waiting Room Queue Card */
+.waiting-room-hero {
+  background: #0b6b63;
+  color: #FFFFFF;
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+  text-align: center;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 24px rgba(11, 107, 99, 0.25);
 }
 
 .waiting-token-circle {
-  width: 90px;
-  height: 90px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   background-color: #FFFFFF;
   color: var(--gov-primary);
@@ -45,66 +404,66 @@
   align-items: center;
   justify-content: center;
   margin: 16px auto;
-  font-weight: 800;
+  border: 3px solid var(--gov-accent);
+  box-shadow: var(--shadow-sm);
 }
 
 .waiting-token-circle .token-num {
-  font-size: 32px;
+  font-size: 34px;
+  font-weight: 900;
   line-height: 1;
 }
 
 .waiting-token-circle .token-label {
   font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
   color: var(--gov-text-muted);
+  letter-spacing: 0.5px;
 }
 
-/* Call Alert Banner when called_at */
+/* Active Consultation Call Alert Banner */
 .call-alert-box {
-  background-color: #FEF3C7;
-  border: 2px solid var(--gov-accent);
-  border-radius: var(--radius-lg);
-  padding: 20px;
+  background-color: var(--status-waiting-bg);
+  border: 2px solid var(--status-waiting);
+  border-radius: var(--radius-md);
+  padding: 18px 16px;
   margin-bottom: 20px;
   text-align: center;
-  animation: call-pulse 1.8s infinite;
+  color: var(--status-waiting);
 }
 
 .call-alert-box.active-call {
-  background-color: #DCFCE7;
-  border-color: var(--status-green);
+  background-color: var(--status-completed-bg);
+  border-color: var(--status-completed);
+  color: var(--status-completed);
 }
 
-@keyframes call-pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); }
-}
-
-/* Presence Verification Gate Card */
+/* Kiosk Physical Presence Verification Gate */
 .presence-gate-card {
-  background-color: #FFF7ED;
-  border: 2px solid #F97316;
-  border-radius: var(--radius-lg);
-  padding: 24px 20px;
+  background-color: var(--gov-accent-light);
+  border: 2px solid var(--gov-accent-border);
+  border-radius: var(--radius-md);
+  padding: 20px 16px;
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .presence-gate-card h3 {
-  color: #9A3412;
-  font-size: 18px;
-  margin-bottom: 8px;
+  color: var(--gov-accent-hover);
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 6px;
 }
 
-/* Prescription Card in History */
+/* Past Prescriptions in Patient Medical History */
 .rx-history-card {
-  background-color: #FFFFFF;
+  background-color: var(--gov-surface);
   border: 1px solid var(--gov-border);
   border-radius: var(--radius-md);
   padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow-sm);
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-xs);
 }
 
 .rx-med-item {
@@ -113,4 +472,636 @@
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px dashed var(--gov-border);
+  font-size: 13.5px;
 }
+.rx-med-item:last-child {
+  border-bottom: none;
+}
+
+/* ==========================================================================
+   OFFICIAL GOVERNMENT AI OPD CLINICAL TRIAGE CHAT UI
+   Ministry of Ayush & National Health Mission (ABDM Compliant)
+   ========================================================================== */
+
+.phone-content.inquiry-active {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-ai-inquiry-container {
+  display: flex;
+  flex-direction: column;
+  height: 620px;
+  max-height: calc(100vh - 160px);
+  background-color: #FFFFFF;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  overflow: hidden;
+}
+
+/* Official Government Triage Header */
+.phone-ai-header {
+  background: #0B1F3A;
+  color: #FFFFFF;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--gov-accent);
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.phone-ai-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.phone-ai-badge-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.phone-ai-header-titles {
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-ai-gov-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: #86efac;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.phone-ai-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.phone-ai-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.phone-ai-patient-chip {
+  background: #FFFFFF;
+  color: #0b6b63;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.phone-ai-audio-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.phone-ai-audio-toggle:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+/* Trust Subbar */
+.phone-ai-subbar {
+  background: #f0fdf4;
+  border-bottom: 1px solid #dcfce7;
+  padding: 5px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.phone-ai-subbar-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #065f46;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Chat Messages Scrollable Area */
+.phone-ai-chat-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #F5F5F0;
+  scroll-behavior: smooth;
+}
+
+.phone-ai-chat-area::-webkit-scrollbar {
+  width: 5px;
+}
+.phone-ai-chat-area::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* Chat Bubbles */
+.phone-chat-bubble {
+  display: flex;
+  gap: 10px;
+  max-width: 90%;
+  animation: slideBubble 0.25s ease-out;
+}
+
+@keyframes slideBubble {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.phone-chat-bubble.ai-msg {
+  align-self: flex-start;
+}
+
+.phone-chat-bubble.patient-msg {
+  align-self: flex-end;
+  flex-direction: row;
+}
+
+.phone-bubble-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #0B1F3A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  box-shadow: none;
+}
+
+.phone-bubble-avatar.patient-avatar {
+  background: #046A38;
+  box-shadow: none;
+}
+
+.phone-bubble-body {
+  background: #FFFFFF;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 18px 18px 18px 4px;
+  padding: 12px 15px;
+  box-shadow: none;
+  color: #1e293b;
+  flex: 1;
+}
+
+.patient-msg .phone-bubble-body {
+  background: #0B1F3A;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 18px 18px 4px 18px;
+  box-shadow: none;
+}
+
+.phone-bubble-sender {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0b6b63;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.patient-msg .phone-bubble-sender {
+  color: #86efac;
+}
+
+.phone-sender-badge {
+  background: #dcfce7;
+  color: #15803d;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.phone-bubble-speak-btn {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0b6b63;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.phone-bubble-speak-btn:hover {
+  background: #0b6b63;
+  color: #FFFFFF;
+  border-color: #0b6b63;
+}
+
+.phone-bubble-text {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  color: inherit;
+}
+
+.phone-bubble-text.main-question {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.phone-bubble-subtext {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+.phone-bubble-help {
+  font-size: 12px;
+  color: #64748b;
+  margin: 4px 0 10px;
+  line-height: 1.35;
+}
+
+/* Options Grid & Interactive Option Chips */
+.phone-ai-options {
+  margin-top: 12px;
+}
+
+.phone-options-hint {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.phone-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.phone-ai-option-btn {
+  background: #FFFFFF;
+  border: 1.5px solid #a7f3d0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #065f46;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow: 0 1.5px 5px rgba(11, 107, 99, 0.06);
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.phone-ai-option-btn .opt-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
+.phone-ai-option-btn .opt-text {
+  flex: 1;
+  line-height: 1.35;
+}
+
+.phone-ai-option-btn .opt-arrow {
+  color: #10b981;
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+
+.phone-ai-option-btn:hover,
+.phone-ai-option-btn:focus-visible {
+  background: #0B1F3A;
+  color: #FFFFFF;
+  border-color: #0B1F3A;
+  transform: none;
+  box-shadow: none;
+}
+
+.phone-ai-option-btn:hover .opt-dot {
+  background: #86efac;
+}
+
+.phone-ai-option-btn:hover .opt-arrow {
+  color: #FFFFFF;
+  transform: translateX(3px);
+}
+
+.phone-ai-option-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Typing Indicator */
+.loading-bubble .typing-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.ai-typing-indicator {
+  display: flex;
+  gap: 4px;
+}
+
+.ai-typing-indicator span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0b6b63;
+  animation: typingBounce 1.4s infinite;
+}
+
+.ai-typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.ai-typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
+.typing-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* Voice Notice Banner */
+.phone-voice-feedback-banner {
+  background: #fef3c7;
+  border-top: 1px solid #fde68a;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #92400e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  flex-shrink: 0;
+  animation: fadeInBubble 0.2s ease;
+}
+
+.voice-pulse-icon {
+  color: #ea580c;
+  animation: pulse-mic 1.2s infinite;
+}
+
+/* Government Chat Input Bar */
+.phone-ai-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #FFFFFF;
+  border-top: 1.5px solid #e2e8f0;
+  flex-shrink: 0;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.phone-ai-mic-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #ea580c;
+  color: #FFFFFF;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.32);
+}
+
+.phone-ai-mic-btn:hover {
+  background: #c2410c;
+  transform: scale(1.06);
+}
+
+.phone-ai-mic-btn.recording {
+  background: #dc2626;
+  animation: pulse-mic 1.2s infinite;
+}
+
+@keyframes pulse-mic {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+  70% { transform: scale(1.08); box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+.phone-ai-input-wrap {
+  flex: 1;
+}
+
+.phone-ai-text-input {
+  width: 100%;
+  height: 42px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 24px;
+  padding: 0 16px;
+  font-size: 13.5px;
+  font-family: inherit;
+  background: #f8fafc;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.18s ease;
+  box-sizing: border-box;
+}
+
+.phone-ai-text-input:focus {
+  border-color: #0b6b63;
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(11, 107, 99, 0.12);
+}
+
+.phone-ai-send-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #0b6b63;
+  color: #FFFFFF;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(11, 107, 99, 0.3);
+}
+
+.phone-ai-send-btn:hover {
+  background: #064e3b;
+  transform: scale(1.06);
+}
+
+.phone-ai-send-btn:disabled {
+  background: #94a3b8;
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ==========================================================================
+   OFFICIAL CLINICAL INTAKE REPORT STYLING
+   ========================================================================== */
+
+.clinical-report-card {
+  background: #FFFFFF;
+  border: 1.5px solid #bbf7d0;
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: 0 4px 16px rgba(11, 107, 99, 0.08);
+  border-top: 4px solid #0b6b63;
+}
+
+.report-section {
+  padding: 10px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.report-section:last-child {
+  border-bottom: none;
+}
+
+.report-section h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0b6b63;
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.report-section p {
+  font-size: 14px;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.report-badge {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.report-badge-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.report-badge-value {
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.report-badge-value.severity-mild { color: #16a34a; }
+.report-badge-value.severity-moderate { color: #d97706; }
+.report-badge-value.severity-severe { color: #dc2626; }
+
+.report-badge-value.urgency-routine { color: #0284c7; }
+.report-badge-value.urgency-priority { color: #d97706; }
+.report-badge-value.urgency-emergency { color: #dc2626; }
+
+/* Responsive Media Queries — Zero Fake Phone Bezels */
+@media (max-width: 640px) {
+  .patient-phone-container {
+    max-width: 100%;
+    border-left: none;
+    border-right: none;
+  }
+  .patient-phone-body {
+    padding: 14px 14px 20px;
+  }
+  .phone-ai-inquiry-container {
+    height: calc(100vh - 120px);
+    max-height: none;
+  }
+  .phone-options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 641px) {
+  .patient-phone-container {
+    max-width: 600px;
+    margin: 0 auto;
+    border-left: 1px solid var(--gov-border);
+    border-right: 1px solid var(--gov-border);
+    box-shadow: none;
+  }
+}
+

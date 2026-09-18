@@ -1,164 +1,324 @@
-/* Kiosk Specific Styling per PRD Section 4 & 5 */
+/* ==========================================================================
+   MEDIKIOSK — OPD TOUCH KIOSK TERMINAL STYLING
+   Optimized for High-Visibility Physical Touch Displays & WCAG 2.2 AA
+   Strict 1080p Single-Viewport Fit (Zero Page Scroll)
+   ========================================================================== */
+
 .kiosk-container {
-  max-width: 900px;
+  max-width: 1140px;
+  width: 100%;
   margin: 0 auto;
-  padding: 32px 24px;
-  min-height: calc(100vh - 80px);
+  padding: 8px 18px 12px;
+  flex: 1;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gov-border-strong) transparent;
 }
 
+.kiosk-container::-webkit-scrollbar {
+  width: 6px;
+}
+.kiosk-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kiosk-container::-webkit-scrollbar-thumb {
+  background-color: var(--gov-border-strong);
+  border-radius: 3px;
+}
+
+/* Specific Idle Landing Mode: Generous & Centered Touch Screen Layout */
+.kiosk-container.idle-mode {
+  padding: 10px 20px;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+}
+
+/* Kiosk Terminal Banner (Shown in Active Registration Steps) */
+.kiosk-terminal-banner {
+  background-color: #0B1F3A;
+  color: #FFFFFF;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--gov-accent);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  box-shadow: none;
+  flex-shrink: 0;
+}
+
+.kiosk-terminal-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kiosk-terminal-banner h2 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.kiosk-terminal-banner p {
+  font-size: 11.5px;
+  color: #CBD5E1;
+  margin-top: 1px;
+}
+
+/* Idle State Hero Section — Generous, Bold & Touch-Optimized */
 .kiosk-idle-hero {
   text-align: center;
-  padding: 48px 24px;
+  padding: 24px 32px 20px;
   background: #FFFFFF;
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
   border: 1px solid var(--gov-border);
-}
-
-.kiosk-badge-lang {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin: 24px 0;
-}
-
-.lang-btn {
-  padding: 12px 24px;
-  font-size: 16px;
-  font-weight: 700;
-  border-radius: var(--radius-md);
-  border: 2px solid var(--gov-primary-border);
-  background-color: #FFFFFF;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.lang-btn.active {
-  background-color: var(--gov-primary);
-  color: #FFFFFF;
-  border-color: var(--gov-primary);
-}
-
-.kiosk-action-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-  margin-top: 32px;
-}
-
-.kiosk-card-btn {
-  background-color: #FFFFFF;
-  border: 2px solid var(--gov-border);
-  border-radius: var(--radius-xl);
-  padding: 32px 24px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 960px;
+  box-sizing: border-box;
+  margin: auto 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  justify-content: center;
 }
 
-.kiosk-card-btn:hover {
+.kiosk-hero-main-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #0B1F3A;
+  margin-bottom: 2px;
+  letter-spacing: -0.2px;
+  line-height: 1.2;
+}
+
+.kiosk-hero-sub-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gov-secondary);
+  margin-bottom: 8px;
+  letter-spacing: 0.2px;
+}
+
+.kiosk-hero-caption {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--gov-text-muted);
+  max-width: 700px;
+  margin: 0 auto 16px;
+  line-height: 1.45;
+}
+
+/* Large Accessible Action Cards for Touch Kiosks */
+.kiosk-action-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* Centered Hero Single Action for Touch Kiosks */
+.kiosk-single-action-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 640px;
+  margin: 12px auto 0;
+}
+
+.kiosk-card-btn {
+  background-color: var(--gov-surface);
+  border: 1.5px solid var(--gov-border);
+  border-radius: var(--radius-sm);
+  padding: 18px 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: none;
+  min-height: 64px;
+}
+
+.kiosk-card-btn:hover, .kiosk-card-btn:focus-visible {
   border-color: var(--gov-primary);
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
+  background-color: var(--gov-primary-light);
+  box-shadow: none;
 }
 
 .kiosk-card-btn.primary {
-  background-color: var(--gov-primary);
+  background-color: #0B1F3A;
   color: #FFFFFF;
-  border-color: var(--gov-primary);
-}
-.kiosk-card-btn.primary:hover {
-  background-color: var(--gov-primary-hover);
-}
-
-/* Question Flow & Progress */
-.kiosk-intake-header {
-  margin-bottom: 24px;
+  border: 1.5px solid #0B1F3A;
+  box-shadow: none;
+  position: relative;
 }
 
-.kiosk-progress-bar-wrap {
-  background-color: #E2E8F0;
-  border-radius: 20px;
-  height: 10px;
-  overflow: hidden;
-  margin-top: 12px;
+.kiosk-card-btn.primary::before {
+  display: none;
 }
 
-.kiosk-progress-fill {
-  background-color: var(--gov-accent);
-  height: 100%;
-  transition: width 0.3s ease;
+.kiosk-card-btn.primary:hover, .kiosk-card-btn.primary:focus-visible {
+  background-color: #143258;
+  border-color: #143258;
+  box-shadow: none;
 }
 
-.kiosk-question-box {
+.kiosk-card-btn.primary:hover::before, .kiosk-card-btn.primary:focus-visible::before {
+  display: none;
+}
+
+.kiosk-card-icon-box {
+  width: 56px;
+  height: 56px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kiosk-card-icon-box.primary-icon-box {
   background-color: #FFFFFF;
+  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px;
+}
+
+.kiosk-card-icon-box.secondary-icon-box {
+  background-color: var(--gov-surface-subtle);
+  border: 1px solid var(--gov-border);
+}
+
+.kiosk-card-btn.kiosk-hero-btn-large {
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 4px;
+  gap: 16px;
+}
+
+.kiosk-hero-btn-large .kiosk-card-icon-box {
+  width: 50px;
+  height: 50px;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.kiosk-hero-btn-large h3 {
+  font-size: 20px;
+  font-weight: 800;
+  margin-bottom: 3px;
+  letter-spacing: -0.2px;
+}
+
+.kiosk-hero-btn-large p {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.kiosk-patient-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.kiosk-card-btn h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 5px;
+  line-height: 1.25;
+}
+
+.kiosk-card-btn p {
+  font-size: 13.5px;
+  color: var(--gov-text-muted);
+  line-height: 1.45;
+}
+
+.kiosk-card-btn.primary p {
+  color: #E2E8F0;
+}
+
+/* Question Flow Box */
+.kiosk-question-box {
+  background-color: var(--gov-surface);
   border: 1px solid var(--gov-border);
   border-radius: var(--radius-xl);
-  padding: 36px 32px;
+  padding: 32px 28px;
   box-shadow: var(--shadow-sm);
   margin-bottom: 24px;
 }
 
 .kiosk-question-title {
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 700;
-  color: var(--gov-text-main);
+  color: var(--gov-primary);
   line-height: 1.35;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .kiosk-question-sub {
-  font-size: 16px;
+  font-size: 14.5px;
   color: var(--gov-text-muted);
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .kiosk-options-grid {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .kiosk-opt-btn {
-  background-color: #FFFFFF;
-  border: 2px solid var(--gov-border-strong);
-  border-radius: var(--radius-lg);
-  padding: 20px 24px;
-  font-size: 20px;
+  background-color: var(--gov-surface);
+  border: 2px solid var(--gov-border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--gov-text-main);
   text-align: left;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.kiosk-opt-btn:hover {
+.kiosk-opt-btn:hover, .kiosk-opt-btn:focus-visible {
   background-color: var(--gov-primary-light);
   border-color: var(--gov-primary);
   color: var(--gov-primary);
 }
 
+/* Voice Input / Speech Recognition Box */
 .kiosk-voice-control {
-  margin-top: 32px;
-  padding: 24px;
-  background-color: #F8FAFC;
+  margin-top: 24px;
+  padding: 20px;
+  background-color: var(--gov-surface-subtle);
   border: 2px dashed var(--gov-border-strong);
   border-radius: var(--radius-lg);
   text-align: center;
 }
 
 .voice-mic-btn {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   background-color: var(--gov-accent);
   color: #FFFFFF;
@@ -167,17 +327,397 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.2s ease, background-color 0.2s;
-  box-shadow: var(--shadow-md);
+  transition: background-color 0.15s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.voice-mic-btn:hover {
+  background-color: var(--gov-accent-hover);
 }
 
 .voice-mic-btn.recording {
-  background-color: var(--status-red);
-  animation: pulse-mic 1.2s infinite;
+  background-color: var(--status-priority);
+  animation: pulse-mic 1.4s infinite;
 }
 
 @keyframes pulse-mic {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
-  70% { transform: scale(1.08); box-shadow: 0 0 0 16px rgba(220, 38, 38, 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(185, 28, 28, 0.5); }
+  70% { transform: scale(1.06); box-shadow: 0 0 0 14px rgba(185, 28, 28, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(185, 28, 28, 0); }
+}
+
+/* ==========================================================================
+   AI-POWERED INQUIRY CONVERSATION UI
+   Chat-style interface for Bhashini + OpenRouter powered symptom screening
+   ========================================================================== */
+
+.ai-inquiry-container {
+  max-width: 840px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--gov-surface);
+  border: 1px solid var(--gov-border);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  overflow: hidden;
+  height: calc(100vh - 210px);
+  min-height: 480px;
+}
+
+.ai-inquiry-header {
+  padding: 12px 18px;
+  background: #F8FAFC;
+  border-bottom: 1px solid var(--gov-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ai-inquiry-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: #0B1F3A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Chat Messages Area */
+.ai-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #F5F5F0;
+}
+
+.ai-chat-bubble {
+  display: flex;
+  gap: 10px;
+  max-width: 85%;
+}
+
+.ai-chat-bubble.ai-bubble {
+  align-self: flex-start;
+}
+
+.ai-chat-bubble.patient-bubble {
+  align-self: flex-end;
+}
+
+.ai-bubble-icon {
+  flex-shrink: 0;
+  color: #0B1F3A;
+  margin-top: 4px;
+}
+
+.patient-bubble-icon {
+  flex-shrink: 0;
+  color: var(--gov-accent);
+  margin-top: 4px;
+}
+
+.ai-bubble-content {
+  background: #FFFFFF;
+  border: 1px solid var(--gov-border);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--gov-text-main);
+  box-shadow: none;
+}
+
+.patient-bubble .ai-bubble-content {
+  background: #0B1F3A;
+  color: #FFFFFF;
+  border: 1px solid #0B1F3A;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+/* AI Option Buttons inside chat bubble */
+.ai-options-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ai-option-btn {
+  background: #FFFFFF;
+  border: 1.5px solid #0B1F3A;
+  border-radius: var(--radius-sm);
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0B1F3A;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-option-btn:hover, .ai-option-btn:focus-visible {
+  background: #0B1F3A;
+  color: #FFFFFF;
+  border-color: #0B1F3A;
+}
+
+.ai-option-btn:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Typing Indicator */
+.ai-typing-indicator {
+  display: flex;
+  gap: 5px;
+  padding: 4px 0;
+}
+
+.ai-typing-indicator span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0B1F3A;
+  animation: typingBounce 1.4s infinite;
+}
+
+.ai-typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.ai-typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* Input Bar */
+.ai-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #FFFFFF;
+  border-top: 1px solid var(--gov-border);
+  flex-shrink: 0;
+}
+
+.ai-voice-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: var(--radius-sm);
+  background: var(--gov-accent);
+  color: #FFFFFF;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.ai-voice-btn:hover {
+  background: var(--gov-accent-hover);
+}
+
+.ai-voice-btn.recording {
+  background: var(--status-priority);
+  animation: pulse-mic 1.4s infinite;
+}
+
+.ai-text-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1.5px solid var(--gov-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.12s ease;
+  background: #FFFFFF;
+  color: var(--gov-text-main);
+}
+
+.ai-text-input:focus {
+  border-color: var(--gov-primary);
+}
+
+.ai-send-btn {
+  width: 54px;
+  height: 54px;
+  border-radius: var(--radius-sm);
+  background: var(--gov-primary);
+  color: #FFFFFF;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.ai-send-btn:hover {
+  background: var(--gov-primary-hover);
+}
+
+.ai-send-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   CLINICAL REPORT CARD
+   ========================================================================== */
+
+.clinical-report-card {
+  background: #FFFFFF;
+  border: 1.5px solid var(--gov-border-strong);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.report-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--gov-border);
+}
+
+.report-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.report-section h4 {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gov-text-muted);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.report-section p {
+  font-size: 14.5px;
+  color: var(--gov-text-main);
+  line-height: 1.55;
+}
+
+.report-badge {
+  background: var(--gov-surface-subtle);
+  border: 1px solid var(--gov-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  text-align: center;
+}
+
+.report-badge-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gov-text-muted);
+  margin-bottom: 4px;
+}
+
+.report-badge-value {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.severity-mild { color: #16a34a; }
+.severity-moderate { color: #d97706; }
+.severity-severe { color: #dc2626; }
+
+.urgency-routine { color: #16a34a; }
+.urgency-priority { color: #d97706; }
+.urgency-urgent { color: #dc2626; }
+
+/* ==========================================================================
+   RESPONSIVE OVERRIDES
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .kiosk-container.idle-mode {
+    padding: 10px;
+  }
+  .kiosk-idle-hero {
+    padding: 20px 16px;
+  }
+  .kiosk-action-cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .kiosk-card-btn {
+    padding: 16px 14px;
+  }
+  .kiosk-card-btn.kiosk-hero-btn-large {
+    padding: 20px 18px;
+    gap: 16px;
+  }
+  .kiosk-hero-btn-large .kiosk-card-icon-box {
+    width: 60px;
+    height: 60px;
+  }
+  .kiosk-hero-btn-large h3 {
+    font-size: 20px;
+  }
+  .kiosk-terminal-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .ai-inquiry-container {
+    height: calc(100vh - 160px);
+    border-radius: var(--radius-md);
+  }
+  .ai-chat-bubble {
+    max-width: 92%;
+  }
+  .ai-options-grid {
+    flex-direction: column;
+  }
+  .ai-option-btn {
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+@media (max-width: 480px) {
+  .kiosk-container {
+    padding: 12px 10px 24px;
+  }
+  .kiosk-idle-hero h1 {
+    font-size: 24px;
+  }
+  .kiosk-idle-hero p {
+    font-size: 13.5px;
+  }
+  .kiosk-hero-btn-large {
+    padding: 16px 12px;
+  }
+  .kiosk-hero-btn-large h3 {
+    font-size: 17px;
+  }
+  .gov-card {
+    padding: 18px 14px;
+  }
 }

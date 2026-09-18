@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { api } from '../services/api';
 import { 
   ShieldCheck, Building, Users, Lock, Calendar, 
@@ -7,9 +8,12 @@ import {
   BarChart3, TrendingUp, Clock, Activity, ArrowUpRight
 } from 'lucide-react';
 import '../styles/admin.css';
+import hospitalIcon from '../assets/hospital.png';
+import OrsLoginCard from '../components/common/OrsLoginCard';
 
 export default function AdminPortalView() {
   const { staffUser, staffToken, loginStaff, logoutStaff, selectedHospitalId } = useAuth();
+  const { translate } = useLanguage();
 
   // Login form if not logged in
   const [email, setEmail] = useState('admin@civildistrict.gov.in');
@@ -123,7 +127,7 @@ export default function AdminPortalView() {
     }
   };
 
-  // Save Hospital Settings (Physical Presence & Registration Mode)
+  // Save Hospital Settings
   const handleSaveHospitalSettings = async (e) => {
     e.preventDefault();
     try {
@@ -132,7 +136,7 @@ export default function AdminPortalView() {
         registration_mode: regMode
       }, staffToken);
       setHospitalSettings(res.hospital);
-      setNotice('Hospital configuration updated successfully!');
+      setNotice('Hospital configuration saved successfully!');
       setTimeout(() => setNotice(null), 3000);
     } catch (err) {
       alert(err.message);
@@ -170,7 +174,7 @@ export default function AdminPortalView() {
       setNewStaffName('');
       setNewStaffEmail('');
       setNewStaffPhone('');
-      setNotice('Staff user created successfully!');
+      setNotice('Staff user provisioned successfully!');
       loadTabData('staff');
       setTimeout(() => setNotice(null), 3000);
     } catch (err) {
@@ -187,7 +191,7 @@ export default function AdminPortalView() {
         doctor_id: selectedDoctorId,
         room_number: assignRoomNum
       }, staffToken);
-      setNotice('Doctor room assigned for today!');
+      setNotice('Daily doctor consultation room assigned!');
       loadTabData('rooms');
       setTimeout(() => setNotice(null), 3000);
     } catch (err) {
@@ -210,7 +214,7 @@ export default function AdminPortalView() {
       setNewHospName('');
       setNewHospAddress('');
       setNewHospPhone('');
-      setNotice('New Hospital provisioned on the platform!');
+      setNotice('New Hospital tenant onboarded to central network!');
       loadTabData('superadmin');
       setTimeout(() => setNotice(null), 3000);
     } catch (err) {
@@ -220,76 +224,14 @@ export default function AdminPortalView() {
 
   if (!staffToken) {
     return (
-      <div style={{ maxWidth: '520px', margin: '50px auto', padding: '0 16px' }}>
-        <div className="gov-card">
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <ShieldCheck size={48} color="var(--gov-primary)" style={{ margin: '0 auto 8px' }} />
-            <h2 style={{ fontSize: '22px', fontWeight: '800' }}>Admin Portal Login</h2>
-            <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)' }}>
-              Hospital Administration & Super Admin Portal
-            </p>
-          </div>
-
-          {authError && (
-            <div style={{ backgroundColor: 'var(--status-red-bg)', color: 'var(--status-red)', padding: '10px', borderRadius: '6px', marginBottom: '14px', fontSize: '13px' }}>
-              {authError}
-            </div>
-          )}
-
-          {/* 1-Click Quick Demo Sign-in */}
-          <div style={{ backgroundColor: '#F8FAFC', padding: '14px', borderRadius: '10px', border: '1px solid var(--gov-border)', marginBottom: '20px' }}>
-            <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              ⚡ 1-Click Demo Sign-in:
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <button 
-                type="button" 
-                className="gov-btn gov-btn-outline gov-btn-sm" 
-                style={{ textAlign: 'left', fontSize: '12px', padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                onClick={() => handleQuickLogin('admin@civildistrict.gov.in')}
-              >
-                <span>Hospital Admin</span>
-                <ArrowUpRight size={14} color="var(--gov-accent)" />
-              </button>
-              <button 
-                type="button" 
-                className="gov-btn gov-btn-outline gov-btn-sm" 
-                style={{ textAlign: 'left', fontSize: '12px', padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                onClick={() => handleQuickLogin('superadmin@medikiosk.gov.in')}
-              >
-                <span>Super Admin</span>
-                <ArrowUpRight size={14} color="var(--gov-accent)" />
-              </button>
-            </div>
-          </div>
-
-          <form onSubmit={handleLogin}>
-            <div className="gov-input-group">
-              <label>Admin Email</label>
-              <input 
-                type="email" 
-                className="gov-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="gov-input-group">
-              <label>Password</label>
-              <input 
-                type="password" 
-                className="gov-input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <button type="submit" className="gov-btn gov-btn-primary" style={{ width: '100%', marginTop: '8px' }} disabled={authLoading}>
-              {authLoading ? 'Authenticating...' : 'Sign In to Admin Portal'}
-            </button>
-          </form>
-        </div>
+      <div className="ors-view-login-container">
+        <OrsLoginCard
+          title="Login"
+          subtitle="Hospital Administration & Operations • Management Console"
+          defaultTab="staff"
+          role="admin"
+          onSuccess={() => {}}
+        />
       </div>
     );
   }
@@ -298,207 +240,206 @@ export default function AdminPortalView() {
 
   return (
     <div className="admin-container">
-      {/* Top Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      {/* Top Section Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--gov-primary)' }}>
-            Hospital Administration Portal
+          <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--gov-primary)' }}>
+            Hospital Administration & Operations
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)' }}>
-            {staffUser?.hospital_name || 'Central Platform'} • Logged in as: {staffUser?.name}
+            Facility: <b>{staffUser?.hospital_name || 'Central Ministry Platform'}</b> • Logged in as: {staffUser?.name} ({staffUser?.role || 'Admin'})
           </p>
         </div>
 
-        <button className="gov-btn gov-btn-outline gov-btn-sm" onClick={logoutStaff}>
-          <LogOut size={14} /> Sign Out Admin
+        <button type="button" className="gov-btn gov-btn-outline gov-btn-sm" onClick={logoutStaff}>
+          <LogOut size={13} /> Sign Out Admin
         </button>
       </div>
 
       {notice && (
-        <div style={{ backgroundColor: 'var(--status-green-bg)', color: 'var(--status-green)', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontWeight: '700' }}>
+        <div 
+          role="alert"
+          style={{ 
+            backgroundColor: 'var(--status-completed-bg)', 
+            color: 'var(--status-completed)', 
+            border: '1px solid var(--status-completed-border)',
+            padding: '10px 14px', 
+            borderRadius: 'var(--radius-md)', 
+            marginBottom: '18px', 
+            fontWeight: '700',
+            fontSize: '13.5px'
+          }}
+        >
           ✓ {notice}
         </div>
       )}
 
       {/* Admin Navigation Tabs */}
-      <div className="admin-nav-tabs">
+      <nav className="admin-nav-tabs" aria-label="Administration Modules">
         <button 
+          type="button"
           className={`admin-tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
           onClick={() => setActiveTab('analytics')}
         >
-          <BarChart3 size={16} /> OPD Analytics & Footfall
+          <BarChart3 size={15} /> Census & Footfall
         </button>
         <button 
+          type="button"
           className={`admin-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => setActiveTab('settings')}
         >
-          <Settings size={16} /> Hospital Rules & Presence
+          <Settings size={15} /> Hospital Rules & Presence
         </button>
         <button 
+          type="button"
           className={`admin-tab-btn ${activeTab === 'departments' ? 'active' : ''}`}
           onClick={() => setActiveTab('departments')}
         >
-          <Building size={16} /> Departments ({departments.length})
+          <Building size={15} /> Departments ({departments.length})
         </button>
         <button 
+          type="button"
           className={`admin-tab-btn ${activeTab === 'staff' ? 'active' : ''}`}
           onClick={() => setActiveTab('staff')}
         >
-          <Users size={16} /> Staff & Roles ({staffList.length})
+          <Users size={15} /> Staff Directory ({staffList.length})
         </button>
         <button 
+          type="button"
           className={`admin-tab-btn ${activeTab === 'rooms' ? 'active' : ''}`}
           onClick={() => setActiveTab('rooms')}
         >
-          <Calendar size={16} /> Daily Room Assignments
+          <Calendar size={15} /> Daily Doctor Rooms
         </button>
         <button 
+          type="button"
           className={`admin-tab-btn ${activeTab === 'rbac' ? 'active' : ''}`}
           onClick={() => setActiveTab('rbac')}
         >
-          <Lock size={16} /> Dynamic RBAC Matrix
+          <Lock size={15} /> Dynamic RBAC Matrix
         </button>
         <button 
+          type="button"
           className={`admin-tab-btn ${activeTab === 'requests' ? 'active' : ''}`}
           onClick={() => setActiveTab('requests')}
         >
-          <ShieldCheck size={16} /> Self-Register Requests
+          <ShieldCheck size={15} /> Self-Register Approvals
         </button>
 
         {isSuperAdmin && (
           <button 
+            type="button"
             className={`admin-tab-btn ${activeTab === 'superadmin' ? 'active' : ''}`}
             onClick={() => setActiveTab('superadmin')}
             style={{ color: 'var(--gov-accent)' }}
           >
-            <Building2 size={16} /> Super Admin Platform
+            <Building2 size={15} /> Super Admin Platform
           </button>
         )}
-      </div>
+      </nav>
 
-      {/* TAB -1: OPD ANALYTICS & FOOTFALL DASHBOARD */}
+      {/* TAB 1: OPD ANALYTICS & FOOTFALL */}
       {activeTab === 'analytics' && (
         <div>
-          {/* KPI Summary Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-            <div className="gov-card" style={{ padding: '20px', borderLeft: '4px solid var(--gov-primary)' }}>
-              <div style={{ fontSize: '12px', color: 'var(--gov-text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>
-                Today's OPD Footfall
-              </div>
-              <div style={{ fontSize: '32px', fontWeight: '900', color: 'var(--gov-primary)', marginTop: '4px' }}>
-                142
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--status-green)', fontWeight: '700', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <TrendingUp size={14} /> +18% vs Yesterday
+          {/* Official KPI Cards */}
+          <div className="admin-stats-grid">
+            <div className="stat-card">
+              <div className="stat-label">Today's OPD Registrations</div>
+              <div className="stat-number">142</div>
+              <div className="stat-desc" style={{ color: 'var(--status-completed)', fontWeight: '700' }}>
+                <TrendingUp size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                +18% vs daily baseline
               </div>
             </div>
 
-            <div className="gov-card" style={{ padding: '20px', borderLeft: '4px solid var(--gov-accent)' }}>
-              <div style={{ fontSize: '12px', color: 'var(--gov-text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>
-                Active in Queue
-              </div>
-              <div style={{ fontSize: '32px', fontWeight: '900', color: 'var(--gov-accent)', marginTop: '4px' }}>
-                14
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--gov-text-muted)', marginTop: '4px' }}>
-                4 in active consultation
-              </div>
+            <div className="stat-card accent">
+              <div className="stat-label">Active Waiting in Queue</div>
+              <div className="stat-number" style={{ color: 'var(--gov-accent)' }}>14</div>
+              <div className="stat-desc">4 patients currently in consult</div>
             </div>
 
-            <div className="gov-card" style={{ padding: '20px', borderLeft: '4px solid #16A34A' }}>
-              <div style={{ fontSize: '12px', color: 'var(--gov-text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>
-                Avg Waiting Time
-              </div>
-              <div style={{ fontSize: '32px', fontWeight: '900', color: '#16A34A', marginTop: '4px' }}>
-                11 min
-              </div>
-              <div style={{ fontSize: '12px', color: '#16A34A', fontWeight: '700', marginTop: '4px' }}>
-                ✓ Below 15 min SLA Target
-              </div>
+            <div className="stat-card success">
+              <div className="stat-label">Avg Consult Wait Time</div>
+              <div className="stat-number" style={{ color: 'var(--status-completed)' }}>11 min</div>
+              <div className="stat-desc">✓ Well below 15-min SLA</div>
             </div>
 
-            <div className="gov-card" style={{ padding: '20px', borderLeft: '4px solid #7C3AED' }}>
-              <div style={{ fontSize: '12px', color: 'var(--gov-text-muted)', fontWeight: '700', textTransform: 'uppercase' }}>
-                Completed Prescriptions
-              </div>
-              <div style={{ fontSize: '32px', fontWeight: '900', color: '#7C3AED', marginTop: '4px' }}>
-                128
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--gov-text-muted)', marginTop: '4px' }}>
-                100% ABHA Linked
-              </div>
+            <div className="stat-card info">
+              <div className="stat-label">Completed Prescriptions</div>
+              <div className="stat-number" style={{ color: 'var(--gov-secondary)' }}>128</div>
+              <div className="stat-desc">100% ABHA digital record synced</div>
             </div>
           </div>
 
           {/* Department Breakdown & Hourly Heatmap */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', marginBottom: '24px' }}>
-            {/* Dept Ratio */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+            {/* Department Ratio */}
             <div className="gov-card">
-              <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Activity size={18} /> Department Footfall Distribution
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--gov-primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Activity size={16} /> Departmental Census Distribution
               </h3>
 
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '700', marginBottom: '4px' }}>
-                  <span>🌿 AYUSH (Ayurveda & Panchakarma)</span>
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}>
+                  <span>AYUSH (Ayurveda & Panchakarma)</span>
                   <span>46% (65 Patients)</span>
                 </div>
-                <div style={{ height: '10px', backgroundColor: '#E2E8F0', borderRadius: '5px', overflow: 'hidden' }}>
-                  <div style={{ width: '46%', height: '100%', backgroundColor: '#16A34A', borderRadius: '5px' }}></div>
+                <div style={{ height: '8px', backgroundColor: 'var(--gov-border)', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ width: '46%', height: '100%', backgroundColor: 'var(--status-completed)', borderRadius: '4px' }}></div>
                 </div>
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '700', marginBottom: '4px' }}>
-                  <span>🩺 General Medicine OPD</span>
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}>
+                  <span>General Medicine OPD</span>
                   <span>34% (48 Patients)</span>
                 </div>
-                <div style={{ height: '10px', backgroundColor: '#E2E8F0', borderRadius: '5px', overflow: 'hidden' }}>
-                  <div style={{ width: '34%', height: '100%', backgroundColor: 'var(--gov-primary)', borderRadius: '5px' }}></div>
+                <div style={{ height: '8px', backgroundColor: 'var(--gov-border)', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ width: '34%', height: '100%', backgroundColor: 'var(--gov-primary)', borderRadius: '4px' }}></div>
                 </div>
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '700', marginBottom: '4px' }}>
-                  <span>🦴 Orthopedics & Joint Care</span>
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}>
+                  <span>Orthopedics & Joint Care</span>
                   <span>12% (17 Patients)</span>
                 </div>
-                <div style={{ height: '10px', backgroundColor: '#E2E8F0', borderRadius: '5px', overflow: 'hidden' }}>
-                  <div style={{ width: '12%', height: '100%', backgroundColor: 'var(--gov-accent)', borderRadius: '5px' }}></div>
+                <div style={{ height: '8px', backgroundColor: 'var(--gov-border)', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ width: '12%', height: '100%', backgroundColor: 'var(--gov-accent)', borderRadius: '4px' }}></div>
                 </div>
               </div>
 
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '700', marginBottom: '4px' }}>
-                  <span>👶 Pediatrics & ENT OPD</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}>
+                  <span>Pediatrics & ENT OPD</span>
                   <span>8% (12 Patients)</span>
                 </div>
-                <div style={{ height: '10px', backgroundColor: '#E2E8F0', borderRadius: '5px', overflow: 'hidden' }}>
-                  <div style={{ width: '8%', height: '100%', backgroundColor: '#64748B', borderRadius: '5px' }}></div>
+                <div style={{ height: '8px', backgroundColor: 'var(--gov-border)', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ width: '8%', height: '100%', backgroundColor: '#64748B', borderRadius: '4px' }}></div>
                 </div>
               </div>
             </div>
 
-            {/* Peak Hours Heatmap */}
+            {/* Peak Hours Breakdown */}
             <div className="gov-card">
-              <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Clock size={18} /> Peak Footfall Hours (08:00 - 14:00)
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--gov-primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clock size={16} /> Peak Arrival Windows (08:00 - 13:00)
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {[
                   { time: '08:00 - 09:00', count: 18, pct: '35%' },
-                  { time: '09:00 - 10:00 (Peak)', count: 42, pct: '85%', peak: true },
-                  { time: '10:00 - 11:00 (Peak)', count: 48, pct: '95%', peak: true },
+                  { time: '09:00 - 10:00 (Morning Rush)', count: 42, pct: '85%', peak: true },
+                  { time: '10:00 - 11:00 (Peak Queue)', count: 48, pct: '95%', peak: true },
                   { time: '11:00 - 12:00', count: 24, pct: '50%' },
                   { time: '12:00 - 13:00', count: 10, pct: '20%' }
                 ].map((slot, idx) => (
                   <div key={idx}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '700', marginBottom: '2px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: '600', marginBottom: '2px' }}>
                       <span>{slot.time}</span>
-                      <span style={{ color: slot.peak ? '#DC2626' : 'var(--gov-text-muted)' }}>{slot.count} arrivals</span>
+                      <span style={{ color: slot.peak ? 'var(--status-priority)' : 'var(--gov-text-muted)' }}>{slot.count} arrivals</span>
                     </div>
-                    <div style={{ height: '8px', backgroundColor: '#E2E8F0', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ width: slot.pct, height: '100%', backgroundColor: slot.peak ? '#DC2626' : 'var(--gov-primary)', borderRadius: '4px' }}></div>
+                    <div style={{ height: '6px', backgroundColor: 'var(--gov-border)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: slot.pct, height: '100%', backgroundColor: slot.peak ? 'var(--status-priority)' : 'var(--gov-primary)', borderRadius: '3px' }}></div>
                     </div>
                   </div>
                 ))}
@@ -506,164 +447,167 @@ export default function AdminPortalView() {
             </div>
           </div>
 
-          {/* Doctor Performance Table */}
+          {/* Doctor Performance Summary */}
           <div className="gov-card">
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '16px' }}>
-              Doctor Consultation Throughput (Today)
+            <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--gov-primary)', marginBottom: '14px' }}>
+              Duty Medical Officers Throughput Register
             </h3>
-            <table className="gov-table">
-              <thead>
-                <tr>
-                  <th>Medical Officer / Doctor</th>
-                  <th>Assigned Room</th>
-                  <th>Department</th>
-                  <th>Patients Seen</th>
-                  <th>Avg Consult Time</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style={{ fontWeight: '700' }}>Vaidya Ananya Deshmukh (BAMS, MD)</td>
-                  <td>Room 102</td>
-                  <td>AYUSH</td>
-                  <td>42</td>
-                  <td>8.5 mins</td>
-                  <td><span className="status-badge active">In Consult</span></td>
-                </tr>
-                <tr>
-                  <td style={{ fontWeight: '700' }}>Dr. Vikramaditya Verma (MBBS, MD)</td>
-                  <td>Room 105</td>
-                  <td>General Medicine</td>
-                  <td>48</td>
-                  <td>6.8 mins</td>
-                  <td><span className="status-badge active">In Consult</span></td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="gov-table-container">
+              <table className="gov-table">
+                <thead>
+                  <tr>
+                    <th>Medical Officer</th>
+                    <th>Assigned Room</th>
+                    <th>Department</th>
+                    <th>Patients Consulted</th>
+                    <th>Avg Consult Duration</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style={{ fontWeight: '600' }}>Vaidya Ananya Deshmukh (BAMS, MD)</td>
+                    <td>Room 102</td>
+                    <td>AYUSH</td>
+                    <td>42</td>
+                    <td>8.5 mins</td>
+                    <td><span className="status-badge in_consult">In Consult</span></td>
+                  </tr>
+                  <tr>
+                    <td style={{ fontWeight: '600' }}>Dr. Vikramaditya Verma (MBBS, MD)</td>
+                    <td>Room 105</td>
+                    <td>General Medicine</td>
+                    <td>48</td>
+                    <td>6.8 mins</td>
+                    <td><span className="status-badge in_consult">In Consult</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 0: HOSPITAL RULES & PHYSICAL PRESENCE TOGGLE */}
+      {/* TAB 2: HOSPITAL RULES & PRESENCE CONFIG */}
       {activeTab === 'settings' && (
-        <div className="gov-card" style={{ maxWidth: '800px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '16px', color: 'var(--gov-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Settings size={20} /> Hospital Queue & Presence Configuration
+        <div className="gov-card" style={{ maxWidth: '780px' }}>
+          <h3 style={{ fontSize: '17px', fontWeight: '700', marginBottom: '14px', color: 'var(--gov-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Settings size={18} /> Queue Governance & Physical Presence Rules
           </h3>
 
           <form onSubmit={handleSaveHospitalSettings}>
-            {/* Physical Presence Toggle */}
-            <div style={{ backgroundColor: '#F8FAFC', padding: '20px', borderRadius: '12px', border: '1px solid var(--gov-border)', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+            <div style={{ backgroundColor: 'var(--gov-surface-subtle)', padding: '18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--gov-border)', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                 <input 
                   type="checkbox" 
                   id="presence-toggle"
                   checked={presenceRequired}
                   onChange={(e) => setPresenceRequired(e.target.checked)}
-                  style={{ width: '22px', height: '22px', marginTop: '2px', cursor: 'pointer', accentColor: 'var(--gov-primary)' }}
+                  style={{ width: '20px', height: '20px', marginTop: '2px', cursor: 'pointer', accentColor: 'var(--gov-primary)' }}
                 />
                 <div>
-                  <label htmlFor="presence-toggle" style={{ fontWeight: '800', fontSize: '16px', color: 'var(--gov-text-main)', cursor: 'pointer' }}>
-                    Require Physical Kiosk Presence (QR Code Scan) for Remote Registrations
+                  <label htmlFor="presence-toggle" style={{ fontWeight: '700', fontSize: '15px', color: 'var(--gov-text-main)', cursor: 'pointer' }}>
+                    Require Physical Kiosk Presence Proof (QR Scan) for Remote Registrations
                   </label>
-                  <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)', marginTop: '4px', lineHeight: 1.4 }}>
-                    • <b>Enabled:</b> Patients who start their intake remotely on their mobile phones must scan the Kiosk QR code upon physical arrival at the hospital before they are issued an OPD queue token.<br />
-                    • <b>Disabled:</b> Patients can complete intake and directly join the doctor queue from anywhere remotely without kiosk scanning.
+                  <p style={{ fontSize: '12.5px', color: 'var(--gov-text-muted)', marginTop: '4px', lineHeight: 1.45 }}>
+                    • <b>Enabled:</b> Remote smartphone patients must scan the kiosk presence QR code upon physical arrival before receiving an active token number.<br />
+                    • <b>Disabled:</b> Patients can directly obtain a queue token from home without terminal verification.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Staff Registration Mode */}
             <div className="gov-input-group">
-              <label>Staff Registration Mode</label>
-              <select className="gov-input" value={regMode} onChange={e => setRegMode(e.target.value)}>
+              <label htmlFor="reg-mode-select">Staff Registration Mode</label>
+              <select id="reg-mode-select" className="gov-input" value={regMode} onChange={e => setRegMode(e.target.value)}>
                 <option value="admin_creates">Admin Creates Staff Directly</option>
                 <option value="self_register_approval">Self-Registration with Admin Approval</option>
               </select>
             </div>
 
-            <button type="submit" className="gov-btn gov-btn-primary gov-btn-lg" style={{ marginTop: '12px' }}>
-              <Check size={18} /> Save Hospital Configuration
+            <button type="submit" className="gov-btn gov-btn-primary gov-btn-lg" style={{ marginTop: '8px' }}>
+              <Check size={16} /> Save Governance Settings
             </button>
           </form>
         </div>
       )}
 
-      {/* TAB 1: DEPARTMENTS */}
+      {/* TAB 3: DEPARTMENTS */}
       {activeTab === 'departments' && (
         <div>
-          <div className="gov-card" style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '16px', color: 'var(--gov-primary)' }}>
-              Add New OPD Department
+          <div className="gov-card" style={{ marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '12px', color: 'var(--gov-primary)' }}>
+              Add New OPD Specialty Department
             </h3>
-            <form onSubmit={handleCreateDepartment} style={{ display: 'flex', gap: '12px' }}>
+            <form onSubmit={handleCreateDepartment} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <input 
                 type="text"
                 className="gov-input"
                 placeholder="Department Name (e.g. Ophthalmology / Eye OPD)"
                 value={newDeptName}
                 onChange={(e) => setNewDeptName(e.target.value)}
+                style={{ flex: 1, minWidth: '240px' }}
                 required
               />
-              <button type="submit" className="gov-btn gov-btn-primary" style={{ whiteSpace: 'nowrap' }}>
-                <Plus size={16} /> Add Department
+              <button type="submit" className="gov-btn gov-btn-primary">
+                <Plus size={15} /> Add Department
               </button>
             </form>
           </div>
 
-          <table className="gov-table">
-            <thead>
-              <tr>
-                <th>Department Name</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {departments.map(d => (
-                <tr key={d.id}>
-                  <td style={{ fontWeight: '600' }}>{d.name}</td>
-                  <td>
-                    <span className="status-badge completed" style={{ fontSize: '11px' }}>
-                      {d.is_active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="gov-btn gov-btn-outline gov-btn-sm">Edit</button>
-                  </td>
+          <div className="gov-table-container">
+            <table className="gov-table">
+              <thead>
+                <tr>
+                  <th>Department Name</th>
+                  <th>Operational Status</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {departments.map(d => (
+                  <tr key={d.id}>
+                    <td style={{ fontWeight: '600' }}>{d.name}</td>
+                    <td>
+                      <span className="status-badge completed" style={{ fontSize: '11px' }}>
+                        {d.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <button type="button" className="gov-btn gov-btn-outline gov-btn-sm">Configure</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* TAB 2: STAFF & ROLES */}
+      {/* TAB 4: STAFF & ROLES */}
       {activeTab === 'staff' && (
         <div>
-          <div className="gov-card" style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '16px', color: 'var(--gov-primary)' }}>
-              Provision New Staff Account
+          <div className="gov-card" style={{ marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '14px', color: 'var(--gov-primary)' }}>
+              Provision New Clinical or Administrative Staff
             </h3>
             <form onSubmit={handleCreateStaff}>
-              <div className="grid-2">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
                 <div className="gov-input-group">
-                  <label>Full Name</label>
-                  <input type="text" className="gov-input" value={newStaffName} onChange={e => setNewStaffName(e.target.value)} required />
+                  <label htmlFor="staff-name">Full Name</label>
+                  <input id="staff-name" type="text" className="gov-input" value={newStaffName} onChange={e => setNewStaffName(e.target.value)} required />
                 </div>
                 <div className="gov-input-group">
-                  <label>Email Address</label>
-                  <input type="email" className="gov-input" value={newStaffEmail} onChange={e => setNewStaffEmail(e.target.value)} required />
+                  <label htmlFor="staff-email">Institutional Email</label>
+                  <input id="staff-email" type="email" className="gov-input" value={newStaffEmail} onChange={e => setNewStaffEmail(e.target.value)} required />
                 </div>
                 <div className="gov-input-group">
-                  <label>Phone Number</label>
-                  <input type="tel" className="gov-input" value={newStaffPhone} onChange={e => setNewStaffPhone(e.target.value)} />
+                  <label htmlFor="staff-phone">Contact Phone</label>
+                  <input id="staff-phone" type="tel" className="gov-input" value={newStaffPhone} onChange={e => setNewStaffPhone(e.target.value)} />
                 </div>
                 <div className="gov-input-group">
-                  <label>Assign Dynamic Role</label>
-                  <select className="gov-input" value={newStaffRoleId} onChange={e => setNewStaffRoleId(e.target.value)} required>
+                  <label htmlFor="staff-role">Role Assignment</label>
+                  <select id="staff-role" className="gov-input" value={newStaffRoleId} onChange={e => setNewStaffRoleId(e.target.value)} required>
                     <option value="">Select Role...</option>
                     {roles.map(r => (
                       <option key={r.id} value={r.id}>{r.name}</option>
@@ -671,67 +615,69 @@ export default function AdminPortalView() {
                   </select>
                 </div>
                 <div className="gov-input-group">
-                  <label>Department (Optional for Doctors)</label>
-                  <select className="gov-input" value={newStaffDeptId} onChange={e => setNewStaffDeptId(e.target.value)}>
-                    <option value="">None / General</option>
+                  <label htmlFor="staff-dept">Department</label>
+                  <select id="staff-dept" className="gov-input" value={newStaffDeptId} onChange={e => setNewStaffDeptId(e.target.value)}>
+                    <option value="">None / General Admin</option>
                     {departments.map(d => (
                       <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
                 </div>
                 <div className="gov-input-group">
-                  <label>Initial Password</label>
-                  <input type="text" className="gov-input" value={newStaffPassword} onChange={e => setNewStaffPassword(e.target.value)} required />
+                  <label htmlFor="staff-pass">Initial Password</label>
+                  <input id="staff-pass" type="text" className="gov-input" value={newStaffPassword} onChange={e => setNewStaffPassword(e.target.value)} required />
                 </div>
               </div>
 
-              <button type="submit" className="gov-btn gov-btn-primary" style={{ marginTop: '8px' }}>
-                <Plus size={16} /> Create Staff Account
+              <button type="submit" className="gov-btn gov-btn-primary" style={{ marginTop: '6px' }}>
+                <Plus size={15} /> Create Staff Account
               </button>
             </form>
           </div>
 
-          <table className="gov-table">
-            <thead>
-              <tr>
-                <th>Staff Name</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Email / Phone</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {staffList.map(u => (
-                <tr key={u.id}>
-                  <td style={{ fontWeight: '600' }}>{u.name}</td>
-                  <td><span className="status-badge waiting" style={{ fontSize: '11px' }}>{u.role_name || 'Staff'}</span></td>
-                  <td>{u.department_name || '—'}</td>
-                  <td>{u.email}</td>
-                  <td><span className="status-badge completed" style={{ fontSize: '11px' }}>{u.status}</span></td>
+          <div className="gov-table-container">
+            <table className="gov-table">
+              <thead>
+                <tr>
+                  <th>Staff Member</th>
+                  <th>Assigned Role</th>
+                  <th>Department</th>
+                  <th>Contact Email</th>
+                  <th>Account Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {staffList.map(u => (
+                  <tr key={u.id}>
+                    <td style={{ fontWeight: '600' }}>{u.name}</td>
+                    <td><span className="status-badge waiting" style={{ fontSize: '11px' }}>{u.role_name || 'Staff'}</span></td>
+                    <td>{u.department_name || '—'}</td>
+                    <td>{u.email}</td>
+                    <td><span className="status-badge completed" style={{ fontSize: '11px' }}>{u.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* TAB 3: DAILY ROOM ASSIGNMENTS */}
+      {/* TAB 5: DAILY ROOM ASSIGNMENTS */}
       {activeTab === 'rooms' && (
         <div>
-          <div className="gov-card" style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '16px', color: 'var(--gov-primary)' }}>
-              Set Daily Doctor Room Assignment
+          <div className="gov-card" style={{ marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '8px', color: 'var(--gov-primary)' }}>
+              Set Daily Doctor Consultation Room Assignment
             </h3>
-            <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)', marginBottom: '16px' }}>
-              Rooms change day to day based on rotations. The system dynamically pulls today's assignment when calling patients.
+            <p style={{ fontSize: '12.5px', color: 'var(--gov-text-muted)', marginBottom: '14px' }}>
+              Daily room allocations guide patient triage routing and digital waiting room calls.
             </p>
 
-            <form onSubmit={handleAssignRoom} style={{ display: 'flex', gap: '12px' }}>
-              <select className="gov-input" value={selectedDoctorId} onChange={e => setSelectedDoctorId(e.target.value)} required>
-                <option value="">Select Doctor...</option>
+            <form onSubmit={handleAssignRoom} style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <select className="gov-input" value={selectedDoctorId} onChange={e => setSelectedDoctorId(e.target.value)} required style={{ flex: 1, minWidth: '220px' }}>
+                <option value="">Select Medical Officer...</option>
                 {staffList.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.department_name || 'OPD'})</option>
+                  <option key={s.id} value={s.id}>{s.name} ({s.department_name || 'General OPD'})</option>
                 ))}
               </select>
 
@@ -741,106 +687,111 @@ export default function AdminPortalView() {
                 placeholder="Room Number (e.g. Room 102)"
                 value={assignRoomNum}
                 onChange={e => setAssignRoomNum(e.target.value)}
+                style={{ width: '180px' }}
                 required
               />
 
               <button type="submit" className="gov-btn gov-btn-accent" style={{ whiteSpace: 'nowrap' }}>
-                Save Assignment
+                Save Room Allocation
               </button>
             </form>
           </div>
 
-          <table className="gov-table">
-            <thead>
-              <tr>
-                <th>Doctor</th>
-                <th>Department</th>
-                <th>Assigned Room for Today</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {roomAssignments.map(r => (
-                <tr key={r.id}>
-                  <td style={{ fontWeight: '600' }}>{r.doctor_name}</td>
-                  <td>{r.department_name || '—'}</td>
-                  <td><span className="status-badge priority">{r.room_number}</span></td>
-                  <td>{r.assignment_date}</td>
+          <div className="gov-table-container">
+            <table className="gov-table">
+              <thead>
+                <tr>
+                  <th>Medical Officer</th>
+                  <th>Department</th>
+                  <th>Today's Allocated Room</th>
+                  <th>Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {roomAssignments.map(r => (
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: '600' }}>{r.doctor_name}</td>
+                    <td>{r.department_name || '—'}</td>
+                    <td><span className="status-badge priority">{r.room_number}</span></td>
+                    <td>{r.assignment_date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* TAB 4: DYNAMIC RBAC PERMISSION MATRIX */}
+      {/* TAB 6: DYNAMIC RBAC MATRIX */}
       {activeTab === 'rbac' && rbacMatrix && (
         <div>
-          <div className="gov-card" style={{ marginBottom: '20px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '6px' }}>
+          <div className="gov-card" style={{ marginBottom: '18px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--gov-primary)', marginBottom: '4px' }}>
               Dynamic Role × Module × Action Permission Matrix
             </h3>
-            <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)' }}>
-              Roles and permissions are fully dynamic data tables in PostgreSQL. Zero hardcoded role strings in codebase.
+            <p style={{ fontSize: '12.5px', color: 'var(--gov-text-muted)' }}>
+              All actions are evaluated dynamically against PostgreSQL role permissions. Zero hardcoded role strings in codebase.
             </p>
           </div>
 
-          <table className="gov-table">
-            <thead>
-              <tr>
-                <th>Role</th>
-                {rbacMatrix.modules?.map(m => (
-                  <th key={m.id}>{m.key.toUpperCase()}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rbacMatrix.roles?.map(r => (
-                <tr key={r.id}>
-                  <td style={{ fontWeight: '700', color: 'var(--gov-primary)' }}>{r.name}</td>
-                  {rbacMatrix.modules?.map(m => {
-                    const perms = rbacMatrix.permissions?.filter(p => p.role_id === r.id && p.module_key === m.key);
-                    return (
-                      <td key={m.id} style={{ fontSize: '12px' }}>
-                        {perms && perms.length > 0 ? (
-                          <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
-                            {perms.map((p, idx) => (
-                              <span key={idx} className="status-badge in_consult" style={{ padding: '2px 5px', fontSize: '10px' }}>
-                                {p.action}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span style={{ color: '#CBD5E1' }}>—</span>
-                        )}
-                      </td>
-                    );
-                  })}
+          <div className="gov-table-container">
+            <table className="gov-table">
+              <thead>
+                <tr>
+                  <th>Role Definition</th>
+                  {rbacMatrix.modules?.map(m => (
+                    <th key={m.id}>{m.key.toUpperCase()}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rbacMatrix.roles?.map(r => (
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: '700', color: 'var(--gov-primary)' }}>{r.name}</td>
+                    {rbacMatrix.modules?.map(m => {
+                      const perms = rbacMatrix.permissions?.filter(p => p.role_id === r.id && p.module_key === m.key);
+                      return (
+                        <td key={m.id} style={{ fontSize: '11.5px' }}>
+                          {perms && perms.length > 0 ? (
+                            <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+                              {perms.map((p, idx) => (
+                                <span key={idx} className="status-badge in_consult" style={{ padding: '2px 5px', fontSize: '10px' }}>
+                                  {p.action}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span style={{ color: '#94A3B8' }}>—</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* TAB 5: SELF-REGISTER REQUESTS */}
+      {/* TAB 7: SELF-REGISTER REQUESTS */}
       {activeTab === 'requests' && (
-        <div>
+        <div className="gov-table-container">
           <table className="gov-table">
             <thead>
               <tr>
                 <th>Applicant Name</th>
                 <th>Requested Role</th>
-                <th>Contact</th>
+                <th>Contact Details</th>
                 <th>Status</th>
-                <th>Action</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {registrationRequests.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', color: 'var(--gov-text-muted)', padding: '30px' }}>
-                    No pending registration requests.
+                  <td colSpan={5} style={{ textAlign: 'center', color: 'var(--gov-text-muted)', padding: '36px' }}>
+                    No pending registration approval requests.
                   </td>
                 </tr>
               ) : (
@@ -852,8 +803,8 @@ export default function AdminPortalView() {
                     <td><span className={`status-badge ${req.status}`}>{req.status}</span></td>
                     <td>
                       <div style={{ display: 'flex', gap: '6px' }}>
-                        <button className="gov-btn gov-btn-primary gov-btn-sm">Approve</button>
-                        <button className="gov-btn gov-btn-outline gov-btn-sm" style={{ color: 'var(--status-red)' }}>Reject</button>
+                        <button type="button" className="gov-btn gov-btn-primary gov-btn-sm">Approve</button>
+                        <button type="button" className="gov-btn gov-btn-outline gov-btn-sm" style={{ color: 'var(--status-priority)' }}>Reject</button>
                       </div>
                     </td>
                   </tr>
@@ -864,62 +815,64 @@ export default function AdminPortalView() {
         </div>
       )}
 
-      {/* TAB 6: SUPER ADMIN */}
+      {/* TAB 8: SUPER ADMIN MULTI-TENANT HOSPITAL ONBOARDING */}
       {activeTab === 'superadmin' && (
         <div>
-          <div className="gov-card" style={{ marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '16px', color: 'var(--gov-accent)' }}>
-              Provision New Multi-Tenant Hospital
+          <div className="gov-card" style={{ marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '14px', color: 'var(--gov-accent)' }}>
+              Provision New Multi-Tenant Hospital or Dispensary
             </h3>
             <form onSubmit={handleCreateHospital}>
-              <div className="grid-2">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px' }}>
                 <div className="gov-input-group">
-                  <label>Hospital / Clinic Name</label>
-                  <input type="text" className="gov-input" placeholder="e.g. AIIMS Rishikesh AYUSH Wing" value={newHospName} onChange={e => setNewHospName(e.target.value)} required />
+                  <label htmlFor="hosp-name">Hospital / Facility Name</label>
+                  <input id="hosp-name" type="text" className="gov-input" placeholder="e.g. AIIMS Rishikesh AYUSH Wing" value={newHospName} onChange={e => setNewHospName(e.target.value)} required />
                 </div>
                 <div className="gov-input-group">
-                  <label>Staff Registration Mode</label>
-                  <select className="gov-input" value={newHospRegMode} onChange={e => setNewHospRegMode(e.target.value)}>
+                  <label htmlFor="hosp-regmode">Staff Registration Mode</label>
+                  <select id="hosp-regmode" className="gov-input" value={newHospRegMode} onChange={e => setNewHospRegMode(e.target.value)}>
                     <option value="admin_creates">Admin Creates Staff Directly</option>
                     <option value="self_register_approval">Self-Register with Admin Approval</option>
                   </select>
                 </div>
                 <div className="gov-input-group">
-                  <label>Address</label>
-                  <input type="text" className="gov-input" value={newHospAddress} onChange={e => setNewHospAddress(e.target.value)} />
+                  <label htmlFor="hosp-addr">Facility Address</label>
+                  <input id="hosp-addr" type="text" className="gov-input" value={newHospAddress} onChange={e => setNewHospAddress(e.target.value)} />
                 </div>
                 <div className="gov-input-group">
-                  <label>Contact Phone</label>
-                  <input type="tel" className="gov-input" value={newHospPhone} onChange={e => setNewHospPhone(e.target.value)} />
+                  <label htmlFor="hosp-phone">Helpdesk Contact</label>
+                  <input id="hosp-phone" type="tel" className="gov-input" value={newHospPhone} onChange={e => setNewHospPhone(e.target.value)} />
                 </div>
               </div>
 
-              <button type="submit" className="gov-btn gov-btn-accent" style={{ marginTop: '8px' }}>
-                <Plus size={16} /> Provision Hospital Tenant
+              <button type="submit" className="gov-btn gov-btn-accent" style={{ marginTop: '6px' }}>
+                <Plus size={15} /> Provision Facility Tenant
               </button>
             </form>
           </div>
 
-          <table className="gov-table">
-            <thead>
-              <tr>
-                <th>Hospital Name</th>
-                <th>Registration Mode</th>
-                <th>Address</th>
-                <th>Phone</th>
-              </tr>
-            </thead>
-            <tbody>
-              {hospitals.map(h => (
-                <tr key={h.id}>
-                  <td style={{ fontWeight: '700', color: 'var(--gov-primary)' }}>{h.name}</td>
-                  <td><code>{h.registration_mode}</code></td>
-                  <td>{h.address || '—'}</td>
-                  <td>{h.contact_phone || '—'}</td>
+          <div className="gov-table-container">
+            <table className="gov-table">
+              <thead>
+                <tr>
+                  <th>Hospital Facility Name</th>
+                  <th>Registration Policy</th>
+                  <th>Physical Address</th>
+                  <th>Contact Phone</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {hospitals.map(h => (
+                  <tr key={h.id}>
+                    <td style={{ fontWeight: '700', color: 'var(--gov-primary)' }}>{h.name}</td>
+                    <td><code>{h.registration_mode}</code></td>
+                    <td>{h.address || '—'}</td>
+                    <td>{h.contact_phone || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

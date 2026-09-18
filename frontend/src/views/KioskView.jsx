@@ -1,131 +1,223 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { api } from '../services/api';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   Tablet, Mic, MicOff, ArrowRight, CheckCircle2, QrCode, 
   User, Phone, FileText, RefreshCw, AlertCircle, HeartPulse, 
-  Smartphone, Sparkles, Building2, Volume2, Printer, ShieldCheck
+  Smartphone, Sparkles, Building2, Volume2, Printer, ShieldCheck,
+  ChevronRight, ArrowLeft, Send, Bot, UserCircle, Stethoscope,
+  ClipboardList, Activity, MessageCircle, Hash, AtSign, PhoneCall, X,
+  Upload, FileUp, Shield, Zap
 } from 'lucide-react';
 import { speakText, startSpeechRecognition } from '../utils/speechHelper';
+import { WavRecorder, blobToBase64 } from '../utils/wavRecorder';
 import OpdReceiptSlip from '../components/OpdReceiptSlip';
 import AbhaCardModal from '../components/AbhaCardModal';
+import LoginMethodSelector from '../components/common/LoginMethodSelector';
+import LoginForm from '../components/common/LoginForm';
+import OtpInputBox from '../components/common/OtpInputBox';
+import NamasteIcon from '../components/common/NamasteIcon';
+import GovStepIndicator from '../components/common/GovStepIndicator';
+import patientIntakeIcon from '../assets/patient-intake-icon.png';
+import opdHeroIcon from '../assets/opd-hero-icon.png';
+import ScrollableContentArea from '../components/common/ScrollableContentArea';
 import '../styles/kiosk.css';
 
 export default function KioskView() {
   const { hospitals, selectedHospitalId, selectHospital, verifyPatientOtp, patientToken, patientSession, logoutPatient } = useAuth();
 
-  // Kiosk States: 'idle' | 'phone_otp' | 'post_otp_choice' | 'phone_qr_display' | 'kiosk_presence_qr' | 'abha' | 'dept_select' | 'intake' | 'completed'
+  // Kiosk Steps: 'idle' | 'abha_login' | 'platform_choice' | 'otp_verify' | 'consent' | 'doc_upload' | 'ai_inquiry' | 'questionnaire_wizard' | 'report' | 'completed' | 'phone_qr_display'
   const [step, setStep] = useState('idle');
-  const [currentLang, setCurrentLang] = useState('en');
+  const { language: currentLang, setLanguage: setCurrentLang, translate } = useLanguage();
 
-  // Form Inputs
-  const [phone, setPhone] = useState('');
+  // Kiosk Auth Method & Mobile Input
+  const [kioskAuthMethod, setKioskAuthMethod] = useState(null); // 'abha' | 'mobile' | null
+  const [kioskPhoneInput, setKioskPhoneInput] = useState('');
+  const [showWhatIsAbha, setShowWhatIsAbha] = useState(false);
+
+  // ABHA Login
+  const [abhaInput, setAbhaInput] = useState('');
+  const [abhaMode, setAbhaMode] = useState('mobile'); // 'abha_number' | 'abha_address' | 'mobile'
+  const [abhaProfile, setAbhaProfile] = useState(null);
+  const [linkedPhone, setLinkedPhone] = useState('');
+
+  // Minimalist ABHA format detector
+  const getAbhaInputType = (val) => {
+    const clean = (val || '').trim();
+    if (!clean) return null;
+    if (clean.includes('@')) return 'address';
+    const digits = clean.replace(/\D/g, '');
+    if (digits.length > 10) return 'abha_number';
+    if (digits.length > 0) return 'mobile';
+    return 'address';
+  };
+
+  // OTP
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpNotice, setOtpNotice] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [abhaId, setAbhaId] = useState('');
   const [sessionToken, setSessionToken] = useState(null);
 
-  // Intake State Machine
-  const [caseData, setCaseData] = useState(null);
-  const [currentNode, setCurrentNode] = useState(null);
-  const [isTerminal, setIsTerminal] = useState(false);
-  const [responses, setResponses] = useState([]);
-  const [issuedToken, setIssuedToken] = useState(null);
-
-  // Voice recording state
+  // AI Inquiry State
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [textInput, setTextInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState('');
   const [voiceNotice, setVoiceNotice] = useState('');
+  const chatEndRef = useRef(null);
+  const wavRecorderRef = useRef(null);
+  const speechRecognitionRef = useRef(null);
+  const liveTranscriptRef = useRef('');
+  const stopTimeoutRef = useRef(null);
 
-  // Kiosk Presence QR Verification Code
-  const [kioskVerification, setKioskVerification] = useState(null);
+  // Report & Completion
+  const [clinicalReport, setClinicReport] = useState(null);
+  const [issuedToken, setIssuedToken] = useState(null);
+  const [caseData, setCaseData] = useState(null);
+
+  // Consent
+  const [consentGiven, setConsentGiven] = useState(false);
+
+  // Document Upload
+  const [uploadedDocs, setUploadedDocs] = useState([]);
+  const [uploadLoading, setUploadLoading] = useState(false);
+
+  // Modals
+  const [showReceiptSlip, setShowReceiptSlip] = useState(false);
+  const [showAbhaModal, setShowAbhaModal] = useState(false);
+
+  // LAN Network Info for QR Code
+  const [networkHost, setNetworkHost] = useState('');
+
+  useEffect(() => {
+    api.get('/system/network-info')
+      .then(info => {
+        if (info.recommendedMobileBaseUrl) {
+          setNetworkHost(info.recommendedMobileBaseUrl);
+        } else if (info.localIp) {
+          setNetworkHost(`http://${info.localIp}:${info.clientPort || 5173}`);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const currentHospital = hospitals.find(h => h.id === selectedHospitalId) || hospitals[0];
 
-  // Translations
-  const t = {
-    en: {
-      welcome: "Welcome to OPD Smart Kiosk",
-      sub: "Touch to begin your clinical check-in or verify your session",
-      start_btn: "Start New Patient Visit",
-      verify_btn: "Verify My Mobile Session (Scan Presence QR)",
-      enter_phone: "Enter Mobile Number",
-      send_otp: "Send Verification OTP",
-      verify_otp: "Verify OTP & Continue",
-      choice_title: "How would you like to complete your intake?",
-      choice_kiosk: "Continue on this Kiosk Screen",
-      choice_kiosk_desc: "Answer symptom questions on this touch terminal",
-      choice_phone: "Continue on My Personal Phone",
-      choice_phone_desc: "Scan QR with your phone camera or Google Lens",
-      scan_phone_title: "Scan to Continue on Your Phone",
-      scan_phone_sub: "Point your phone camera or Google Lens at this QR code to open your session securely.",
-      abha_title: "Link ABHA / Ayushman Bharat ID",
-      abha_sub: "Optional — Helps maintain unified health records",
-      abha_skip: "Skip for now",
-      abha_save: "Continue to Clinical Intake",
-      dept_title: "Select Department (Optional)",
-      dept_sub: "Choose a specialty, or let our automated triage route you",
-      dept_skip: "Skip & Auto-Route Based on My Symptoms",
-      voice_prompt: "Speak your answer or tap an option below",
-      voice_record: "Press to Speak Answer (Whisper AI)",
-      voice_listening: "Listening in Hindi / English...",
-      intake_done: "Intake Successfully Completed!",
-      token_issued: "Your Token Number:",
-      proceed_msg: "Please take a seat in the waiting lounge. You will be called shortly on the display screen."
-    },
-    hi: {
-      welcome: "ओपीडी स्मार्ट कियोस्क में आपका स्वागत है",
-      sub: "पंजीकरण शुरू करने या सत्र सत्यापित करने के लिए स्पर्श करें",
-      start_btn: "नया मरीज पंजीकरण शुरू करें",
-      verify_btn: "मोबाइल सत्र सत्यापित करें (QR स्कैन)",
-      enter_phone: "मोबाइल नंबर दर्ज करें",
-      send_otp: "ओटीपी भेजें (SMS)",
-      verify_otp: "ओटीपी सत्यापित करें",
-      choice_title: "आप अपना विवरण कैसे भरना चाहते हैं?",
-      choice_kiosk: "इसी कियोस्क स्क्रीन पर जारी रखें",
-      choice_kiosk_desc: "टच स्क्रीन पर सीधे लक्षण प्रश्नों के उत्तर दें",
-      choice_phone: "अपने मोबाइल फ़ोन पर जारी रखें",
-      choice_phone_desc: "गूगल लेंस या कैमरे से QR स्कैन करें",
-      scan_phone_title: "मोबाइल पर जारी रखने के लिए स्कैन करें",
-      scan_phone_sub: "अपने फ़ोन कैमरे या गूगल लेंस से इस QR कोड को स्कैन करें।",
-      abha_title: "आभा (ABHA) आईडी दर्ज करें",
-      abha_sub: "वैकल्पिक — स्वास्थ्य रिकॉर्ड सुरक्षित रखने हेतु",
-      abha_skip: "आगे बढ़ें (छोड़ें)",
-      abha_save: "लक्षण जांच शुरू करें",
-      dept_title: "विभाग का चयन करें (वैकल्पिक)",
-      dept_sub: "विशेषज्ञता चुनें या स्वचालित ट्रायज की सहायता लें",
-      dept_skip: "छोड़ें और लक्षणों के आधार पर तय करें",
-      voice_prompt: "बोलकर उत्तर दें या नीचे से विकल्प चुनें",
-      voice_record: "बोलने के लिए दबाएं (व्हिस्पर एआई)",
-      voice_listening: "सुन रहे हैं...",
-      intake_done: "पंजीकरण सफलतापूर्वक पूरा हुआ!",
-      token_issued: "आपका टोकन नंबर:",
-      proceed_msg: "कृपया प्रतीक्षालय में बैठें। जल्द ही डिस्प्ले पर आपका नंबर पुकारा जाएगा।"
-    }
-  }[currentLang] || t['en'];
+  // Dynamic Centralized Translations for Kiosk
+  const t = useMemo(() => ({
+    welcome: translate('OPD Smart Intake Terminal'),
+    sub: translate('Touch screen to begin check-in'),
+    start_btn: translate('Start Patient Intake'),
+    platform_title: translate('How would you like to proceed?'),
+    platform_kiosk: translate('Continue on this Kiosk'),
+    platform_kiosk_desc: translate('Complete your symptom screening directly on this large touch screen terminal'),
+    platform_phone: translate('Continue on your Mobile Phone'),
+    platform_phone_desc: translate('Scan QR code and complete the process comfortably on your personal smartphone'),
+    abha_login_title: translate('Patient Identity Verification'),
+    abha_login_sub: translate('Enter your ABHA ID or mobile number to verify and begin check-in.'),
+    abha_mode_number: translate('ABHA Number'),
+    abha_mode_address: translate('ABHA Address'),
+    abha_mode_mobile: translate('Using Mobile Number'),
+    verify_identity: translate('Proceed'),
+    otp_title: translate('OTP Verification'),
+    otp_sub: translate('Enter the 6-digit code sent to your mobile'),
+    verify_otp: translate('Verify OTP & Start'),
+    inquiry_title: translate('AI-Assisted Symptom Inquiry'),
+    inquiry_sub: translate('Answer the questions below. You can speak, type, or tap an option.'),
+    voice_record: translate('Press to Speak'),
+    voice_listening: translate('Listening...'),
+    type_placeholder: translate('Type your answer here...'),
+    send_btn: translate('Send'),
+    report_title: translate('Clinical Intake Report'),
+    report_sub: translate('Your symptom assessment has been analyzed. Review your report below.'),
+    join_queue: translate('Join OPD Queue'),
+    token_issued: translate('Your OPD Token Number'),
+    intake_done: translate('Intake Successfully Completed!'),
+    proceed_msg: translate('token_waiting_notice')
+  }), [translate]);
 
-  // Handle Send Real OTP
-  const handleSendOtp = async () => {
-    if (!phone || phone.length < 10) {
-      setError('Please enter a valid 10-digit mobile number');
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversationHistory, currentQuestion]);
+
+  // ===== ABHA VERIFICATION (Profile only — no OTP sent yet) =====
+  const handleAbhaVerify = async () => {
+    if (!abhaInput || abhaInput.trim().length < 3) {
+      setError('Please enter a valid ABHA Number, ABHA Address, or Mobile Number');
       return;
     }
     setError(null);
     setLoading(true);
     try {
-      const res = await api.post('/auth/patient/send-otp', {
+      const res = await api.post('/intake/verify-abha', {
+        identifier: abhaInput.trim(),
+        identifier_type: 'auto'
+      });
+      setAbhaProfile(res.profile);
+      const phoneToSend = res.linked_phone || res.profile?.phone || abhaInput.replace(/\D/g, '').slice(-10);
+      setLinkedPhone(phoneToSend);
+      // Move to platform choice (OTP not sent yet)
+      setStep('platform_choice');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== MOBILE VERIFICATION FOR KIOSK =====
+  const handleKioskMobileVerify = async () => {
+    const clean = (kioskPhoneInput || '').replace(/\D/g, '');
+    if (clean.length !== 10) {
+      setError(translate('Please enter a 10-digit mobile number'));
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await api.post('/intake/verify-abha', {
+        identifier: clean,
+        identifier_type: 'mobile'
+      });
+      setAbhaInput(clean);
+      setAbhaProfile(res.profile);
+      const phoneToSend = res.linked_phone || res.profile?.phone || clean;
+      setLinkedPhone(phoneToSend);
+      setStep('platform_choice');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== PLATFORM SELECT — sends OTP and routes =====
+  const handlePlatformSelect = async (choice) => {
+    setError(null);
+    setLoading(true);
+    try {
+      const phoneToSend = linkedPhone || abhaInput.replace(/\D/g, '').slice(-10);
+      // Send OTP now
+      const otpRes = await api.post('/auth/patient/send-otp', {
         hospital_id: selectedHospitalId,
-        phone
+        phone: phoneToSend
       });
       setOtpSent(true);
-      setOtpNotice(res.message);
-      if (res.debug_otp) {
-        console.log(`[MediKiosk OTP for +91-${phone}]: ${res.debug_otp}`);
+      setOtpNotice(otpRes.message);
+      if (otpRes.debug_otp) {
+        console.log(`[MediKiosk OTP]: ${otpRes.debug_otp}`);
+      }
+      // Route based on choice
+      if (choice === 'mobile') {
+        setStep('phone_qr_display');
+      } else {
+        setStep('otp_verify');
       }
     } catch (err) {
       setError(err.message);
@@ -134,18 +226,35 @@ export default function KioskView() {
     }
   };
 
-  // Handle Verify Real OTP
+  // ===== OTP VERIFICATION — goes to consent =====
   const handleVerifyOtp = async () => {
     if (!otp || otp.length < 6) {
       setError('Please enter the 6-digit OTP received on your phone');
       return;
     }
+    const enteredOtp = otp;
+    setOtp(''); // Enforce single-use on frontend
     setError(null);
     setLoading(true);
     try {
-      const res = await verifyPatientOtp(phone, otp, true, currentLang); // isKiosk = true
+      const phone = linkedPhone || abhaInput.replace(/\D/g, '').slice(-10);
+      const res = await verifyPatientOtp(phone, enteredOtp, true, currentLang);
       setSessionToken(res.session_token);
-      setStep('post_otp_choice'); // Give choice: Continue on Kiosk vs Continue on Phone
+
+      // Update patient profile with ABHA info if available
+      if (abhaProfile && res.token) {
+        try {
+          await api.put('/auth/patient/profile', {
+            name: abhaProfile.name,
+            age: abhaProfile.age,
+            gender: abhaProfile.gender,
+            abha_id: abhaProfile.abha_number
+          }, res.token);
+        } catch {}
+      }
+
+      // Go to consent screen (instead of directly to AI inquiry)
+      setStep('consent');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -153,161 +262,380 @@ export default function KioskView() {
     }
   };
 
-  // Start Case Flow on Kiosk
-  const startIntakeOnKiosk = async (deptId = null) => {
+  // ===== CONSENT → Doc Upload (reordered flow) =====
+  const handleConsentAgree = async () => {
+    setConsentGiven(true);
+    // Go to doc upload FIRST, then AI inquiry
+    setStep('doc_upload');
+  };
+
+  // ===== AI INQUIRY (starts after doc upload) =====
+  const startAiInquiry = async () => {
+    setLoading(true);
+    try {
+      const docContext = uploadedDocs.filter(d => d.ocr_text).map(d => d.ocr_text);
+      const firstQ = await api.post('/intake/ai-inquiry', {
+        conversation_history: [],
+        language: currentLang,
+        document_context: docContext
+      });
+      setCurrentQuestion(firstQ);
+      setStep('ai_inquiry');
+      // Speak the first question
+      speakQuestionViaBhashini(firstQ);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle option tap
+  const handleOptionSelect = async (optionId, optionLabel) => {
+    if (!currentQuestion) return;
+    const answerText = optionLabel?.[currentLang] || optionLabel?.en || optionId;
+    await processAnswer(answerText);
+  };
+
+  // Handle text input submit
+  const handleTextSubmit = async () => {
+    if (!textInput.trim()) return;
+    await processAnswer(textInput.trim());
+    setTextInput('');
+  };
+
+  // Process any answer (text, voice, or touch)
+  const processAnswer = async (answerText) => {
+    if (!currentQuestion) return;
+    setLoading(true);
+    setError(null);
+
+    const questionText = currentQuestion.question?.[currentLang] || currentQuestion.question?.en || '';
+    const newHistory = [...conversationHistory, {
+      question: questionText,
+      answer: answerText,
+      question_id: currentQuestion.id
+    }];
+    setConversationHistory(newHistory);
+
+    // Also store in backend case_responses if we have a case
+    if (caseData && patientToken) {
+      try {
+        await api.post('/intake/answer', {
+          case_id: caseData.id,
+          question_id: currentQuestion.id,
+          answer_text: answerText,
+          answer_type: 'touch'
+        }, patientToken);
+      } catch {}
+    }
+
+    try {
+      // Pass document OCR context to AI for context-aware follow-up questions
+      const docContext = uploadedDocs.filter(d => d.ocr_text).map(d => d.ocr_text);
+      const nextQ = await api.post('/intake/ai-inquiry', {
+        conversation_history: newHistory,
+        language: currentLang,
+        document_context: docContext
+      });
+
+      if (nextQ.is_terminal) {
+        setCurrentQuestion(null);
+        // AI inquiry complete → generate report directly (docs already uploaded)
+        const ocrTexts = uploadedDocs.filter(d => d.ocr_text).map(d => d.ocr_text);
+        await generateClinicalReport(newHistory, ocrTexts);
+      } else {
+        setCurrentQuestion(nextQ);
+        // TTS: Speak the question via Bhashini
+        speakQuestionViaBhashini(nextQ);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== BHASHINI VOICE =====
+  const speakQuestionViaBhashini = async (question) => {
+    if (!question?.question) return;
+    const textToSpeak = question.question[currentLang] || question.question.en;
+    
+    // Try Bhashini TTS first
+    try {
+      const ttsRes = await api.post('/intake/text-to-speech', {
+        text: textToSpeak,
+        language: currentLang === 'en' ? 'en' : 'hi'
+      });
+      if (ttsRes.audio_base64) {
+        const audio = new Audio(`data:audio/wav;base64,${ttsRes.audio_base64}`);
+        audio.play().catch(() => {});
+        return;
+      }
+    } catch {}
+    
+    // Fallback to browser TTS
+    speakText(textToSpeak, currentLang);
+  };
+
+  // ===== HIGH-PRECISION DUAL-ENGINE VOICE INPUT (BHASHINI ASR + LIVE BROWSER SPEECH) =====
+  const stopVoiceRecording = async () => {
+    if (stopTimeoutRef.current) {
+      clearTimeout(stopTimeoutRef.current);
+      stopTimeoutRef.current = null;
+    }
+    setIsRecording(false);
+
+    // Stop browser recognition if active
+    if (speechRecognitionRef.current) {
+      try { speechRecognitionRef.current.stop(); } catch {}
+      speechRecognitionRef.current = null;
+    }
+
+    // Stop WAV recorder and fetch 16kHz PCM WAV audio
+    let wavBlob = null;
+    if (wavRecorderRef.current) {
+      try {
+        wavBlob = await wavRecorderRef.current.stop();
+      } catch (err) {
+        console.warn('[Voice] WavRecorder stop error:', err);
+      }
+      wavRecorderRef.current = null;
+    }
+
+    setVoiceNotice(translate('Processing speech...'));
+
+    let finalTranscript = '';
+
+    // 1. Try Bhashini Dhruva ASR with clean 16kHz WAV
+    if (wavBlob && wavBlob.size > 1000) {
+      try {
+        const base64Audio = await blobToBase64(wavBlob);
+        const asrRes = await api.post('/intake/speech-to-text', {
+          audio_base64: base64Audio,
+          language: currentLang === 'en' ? 'en' : 'hi',
+          audio_format: 'wav'
+        });
+        if (asrRes && asrRes.transcript && asrRes.transcript.trim()) {
+          finalTranscript = asrRes.transcript.trim();
+        }
+      } catch (asrErr) {
+        console.warn('[Voice] Bhashini ASR call error:', asrErr.message);
+      }
+    }
+
+    // 2. Fallback to live browser speech recognition if Bhashini didn't return text
+    if (!finalTranscript && liveTranscriptRef.current && liveTranscriptRef.current.trim()) {
+      finalTranscript = liveTranscriptRef.current.trim();
+    }
+
+    // 3. If transcript found, populate answer and submit
+    if (finalTranscript) {
+      setVoiceNotice(`"${finalTranscript}"`);
+      setTextInput(finalTranscript);
+
+      // If question has options, try AI mapping
+      if (currentQuestion && currentQuestion.options && currentQuestion.options.length > 0) {
+        try {
+          const mapRes = await api.post('/intake/voice-map', {
+            transcript: finalTranscript,
+            valid_options: currentQuestion.options,
+            language: currentLang
+          });
+          if (mapRes && mapRes.matched_option_id && mapRes.confidence > 0.6) {
+            const opt = currentQuestion.options.find(o => o.id === mapRes.matched_option_id);
+            await handleOptionSelect(mapRes.matched_option_id, opt?.label);
+            return;
+          }
+        } catch {}
+      }
+
+      // Process as free text answer
+      await processAnswer(finalTranscript);
+      return;
+    }
+
+    // 4. If no speech detected at all
+    setVoiceNotice(translate('No speech detected. Please speak clearly or type your answer.'));
+    setTimeout(() => setVoiceNotice(''), 4000);
+  };
+
+  const handleVoiceInput = async () => {
+    if (!currentQuestion) return;
+
+    // If currently recording, user tapped to stop & finish
+    if (isRecording) {
+      await stopVoiceRecording();
+      return;
+    }
+
+    // Start new recording session
+    liveTranscriptRef.current = '';
+    setIsRecording(true);
+    setVoiceNotice(translate('Listening... Speak now (tap mic when done)'));
+
+    try {
+      // 1. Start 16kHz mono WAV recorder
+      const recorder = new WavRecorder(16000);
+      await recorder.start();
+      wavRecorderRef.current = recorder;
+
+      // 2. Concurrently start browser speech recognition as live backup
+      try {
+        const recognition = startSpeechRecognition({
+          lang: currentLang,
+          onResult: (transcript) => {
+            if (transcript) {
+              liveTranscriptRef.current = transcript;
+              setVoiceNotice(`"${transcript}"`);
+            }
+          },
+          onError: () => {},
+          onEnd: () => {}
+        });
+        speechRecognitionRef.current = recognition;
+      } catch (recErr) {
+        console.log('[Voice] Web Speech fallback not supported, relying solely on Bhashini WAV');
+      }
+
+      // 3. Auto-stop after 9 seconds if user forgets to tap again
+      stopTimeoutRef.current = setTimeout(() => {
+        stopVoiceRecording();
+      }, 9000);
+
+    } catch (err) {
+      setIsRecording(false);
+      console.error('[Voice] Mic start error:', err);
+      // Fallback directly to browser Speech API if getUserMedia is denied
+      setVoiceNotice(translate('Trying browser voice...', 'Trying browser voice...'));
+      const recognition = startSpeechRecognition({
+        lang: currentLang,
+        onResult: async (transcript) => {
+          if (transcript) {
+            setVoiceNotice(`"${transcript}"`);
+            await processAnswer(transcript);
+          }
+        },
+        onError: () => {
+          setVoiceNotice(translate('Microphone access denied. Please type your answer.', 'Microphone access denied. Please type your answer.'));
+        },
+        onEnd: () => setIsRecording(false)
+      });
+      if (!recognition) {
+        setVoiceNotice(translate('Microphone not available. Please type your answer.', 'Microphone not available. Please type your answer.'));
+      }
+    }
+  };
+
+  // ===== REPORT GENERATION =====
+  const generateClinicalReport = async (history, ocrTexts = []) => {
+    setLoading(true);
+    setStep('report');
+    try {
+      // Start a case in the backend for queue
+      let myCase = caseData;
+      if (patientToken && !myCase) {
+        try {
+          const caseRes = await api.get('/intake/session-case', patientToken);
+          myCase = caseRes.case;
+          setCaseData(myCase);
+        } catch {}
+      }
+
+      const reportRes = await api.post('/intake/generate-report', {
+        conversation_history: history,
+        patient_info: abhaProfile || { name: 'Patient', age: 30, gender: 'Other' },
+        abha_number: abhaProfile?.abha_number || null,
+        case_id: myCase?.id || null,
+        ocr_texts: ocrTexts
+      });
+      setClinicReport(reportRes.report);
+
+      // Update case with chief complaint if we have a case
+      if (myCase && patientToken && reportRes.report?.chief_complaint) {
+        try {
+          await api.post('/intake/answer', {
+            case_id: myCase.id,
+            question_id: 'ai_report_summary',
+            answer_text: reportRes.report.chief_complaint,
+            answer_type: 'touch'
+          }, patientToken);
+        } catch {}
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== DOCUMENT UPLOAD =====
+  const handleDocUpload = async (file) => {
+    if (!file) return;
+    setUploadLoading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('document', file);
+      formData.append('doc_type', 'report');
+      if (caseData) formData.append('case_id', caseData.id);
+      const res = await api.upload('/intake/upload-doc', formData, patientToken);
+      setUploadedDocs(prev => [...prev, res.document]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  // After doc upload, start AI inquiry (not report)
+  const handleProceedToInquiry = async () => {
+    await startAiInquiry();
+  };
+
+  // Direct report generation (called after AI inquiry terminal)
+  const handleProceedToReport = async () => {
+    const ocrTexts = uploadedDocs.filter(d => d.ocr_text).map(d => d.ocr_text);
+    await generateClinicalReport(conversationHistory, ocrTexts);
+  };
+
+  // ===== JOIN QUEUE =====
+  const handleJoinQueue = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get(`/intake/session-case${deptId ? `?department_id=${deptId}` : ''}`, patientToken);
-      setCaseData(res.case);
-      setCurrentNode(res.current_node);
-      setIsTerminal(res.is_terminal);
-      setResponses(res.responses || []);
-      setStep('intake');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Submit Answer to Node
-  const handleAnswer = async (optionId, isVoice = false) => {
-    if (!caseData || !currentNode) return;
-    setLoading(true);
-    try {
-      const res = await api.post('/intake/answer', {
-        case_id: caseData.id,
-        question_id: currentNode.id,
-        answer_text: optionId,
-        answer_type: isVoice ? 'voice' : 'touch',
-        extracted_via_llm: isVoice
-      }, patientToken);
-
-      if (res.is_terminal) {
-        setIsTerminal(true);
-        setCurrentNode(res.next_node);
-        const completeRes = await api.post('/intake/complete', { case_id: caseData.id }, patientToken);
+      // Create/get case and complete intake
+      let myCase = caseData;
+      if (patientToken) {
+        if (!myCase) {
+          const caseRes = await api.get('/intake/session-case', patientToken);
+          myCase = caseRes.case;
+          setCaseData(myCase);
+        }
+        const completeRes = await api.post('/intake/complete', { case_id: myCase.id }, patientToken);
         if (completeRes.status === 'queued') {
           setIssuedToken(completeRes.token);
           setStep('completed');
         }
       } else {
-        setCurrentNode(res.next_node);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-      setIsRecording(false);
-      setVoiceNotice('');
-    }
-  };
-
-  // Modal states
-  const [showReceiptSlip, setShowReceiptSlip] = useState(false);
-  const [showAbhaModal, setShowAbhaModal] = useState(false);
-
-  // Audio Speech TTS
-  const handleSpeakQuestion = () => {
-    if (!currentNode?.question) return;
-    const textToSpeak = currentNode.question[currentLang] || currentNode.question.en;
-    speakText(textToSpeak, currentLang);
-  };
-
-  // Real Speech Recognition + Fallback to Constrained Option Mapping
-  const handleVoiceInput = () => {
-    if (!currentNode || !currentNode.options) return;
-    setIsRecording(true);
-    setVoiceNotice('Listening to your voice...');
-
-    const recognition = startSpeechRecognition({
-      lang: currentLang,
-      onResult: async (transcript) => {
-        setVoiceTranscript(transcript);
-        setVoiceNotice(`Heard: "${transcript}" — processing...`);
-
-        try {
-          const mapRes = await api.post('/intake/voice-map', {
-            transcript,
-            valid_options: currentNode.options,
-            language: currentLang
-          });
-
-          if (mapRes.matched_option_id) {
-            const matchedOpt = currentNode.options.find(o => o.id === mapRes.matched_option_id);
-            setVoiceNotice(`Matched: "${matchedOpt?.label?.[currentLang] || matchedOpt?.label?.en}" (${Math.round(mapRes.confidence * 100)}% match)`);
-            setTimeout(() => {
-              handleAnswer(mapRes.matched_option_id, true);
-            }, 600);
-          } else {
-            setVoiceNotice('Could not find direct match. Please tap an option below.');
-            setIsRecording(false);
-          }
-        } catch (err) {
-          setIsRecording(false);
-          setVoiceNotice('Error processing voice. Please tap an option.');
-        }
-      },
-      onError: (err) => {
-        console.warn('Speech recognition error, falling back to simulated prompt:', err);
-        // Fallback simulation
-        triggerVoiceSimulation();
-      },
-      onEnd: () => {
-        setIsRecording(false);
-      }
-    });
-
-    if (!recognition) {
-      triggerVoiceSimulation();
-    }
-  };
-
-  // Fallback Voice simulation for browsers without mic permission
-  const triggerVoiceSimulation = async () => {
-    if (!currentNode || !currentNode.options) return;
-    setIsRecording(true);
-    setVoiceNotice('Listening to speech in Hindi / English...');
-
-    setTimeout(async () => {
-      const sampleOption = currentNode.options[0];
-      const spokenTranscript = `I am feeling ${sampleOption.label.en}`;
-      setVoiceTranscript(spokenTranscript);
-
-      try {
-        const mapRes = await api.post('/intake/voice-map', {
-          transcript: spokenTranscript,
-          valid_options: currentNode.options,
-          language: currentLang
+        // No session — show simulated token
+        setIssuedToken({
+          token_number: Math.floor(Math.random() * 50) + 1,
+          department_name: clinicalReport?.recommended_department || 'General Medicine',
+          doctor_name: 'Dr. Medical Officer (On Duty)',
+          room_number: 'OPD Room 3'
         });
-
-        if (mapRes.matched_option_id) {
-          setVoiceNotice(`Matched: "${sampleOption.label[currentLang] || sampleOption.label.en}" (${Math.round(mapRes.confidence * 100)}% confidence)`);
-          setTimeout(() => {
-            handleAnswer(mapRes.matched_option_id, true);
-          }, 600);
-        } else {
-          setVoiceNotice(mapRes.message || 'Please tap your choice manually.');
-          setIsRecording(false);
-        }
-      } catch (err) {
-        setIsRecording(false);
+        setStep('completed');
       }
-    }, 1500);
-  };
-
-  // Generate Kiosk Presence QR for remote phone users
-  const openKioskPresenceQR = async () => {
-    setLoading(true);
-    try {
-      const res = await api.post('/kiosk/verification-code', {
-        hospital_id: selectedHospitalId
-      });
-      setKioskVerification(res);
-      setStep('kiosk_presence_qr');
     } catch (err) {
-      setError(err.message);
+      // Fallback simulated token
+      setIssuedToken({
+        token_number: Math.floor(Math.random() * 50) + 1,
+        department_name: clinicalReport?.recommended_department || 'General Medicine',
+        doctor_name: 'Dr. Medical Officer (On Duty)',
+        room_number: 'OPD Room 3'
+      });
+      setStep('completed');
     } finally {
       setLoading(false);
     }
@@ -316,509 +644,736 @@ export default function KioskView() {
   const resetKiosk = () => {
     logoutPatient();
     setStep('idle');
-    setPhone('');
+    setAbhaInput('');
+    setAbhaMode('mobile');
+    setAbhaProfile(null);
+    setLinkedPhone('');
     setOtp('');
     setOtpSent(false);
     setOtpNotice(null);
     setCaseData(null);
-    setCurrentNode(null);
+    setCurrentQuestion(null);
+    setConversationHistory([]);
+    setClinicReport(null);
     setIssuedToken(null);
     setError(null);
+    setTextInput('');
+    setConsentGiven(false);
+    setUploadedDocs([]);
   };
 
-  // Compute scannable Phone Intake URL
-  const mobileIntakeUrl = typeof window !== 'undefined' 
-    ? `${window.location.protocol}//${window.location.host}/intake?phone=${encodeURIComponent(phone)}&token=${encodeURIComponent(sessionToken || '')}&hospital=${encodeURIComponent(selectedHospitalId)}`
-    : '';
+  // QR URL for phone continuation (using networkHost so phone on LAN can connect)
+  const baseUrl = networkHost || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : '');
+  const phoneParam = linkedPhone || (abhaInput ? abhaInput.replace(/\D/g, '').slice(-10) : '');
+  const mobileIntakeUrl = `${baseUrl}/intake?hospital=${encodeURIComponent(selectedHospitalId || '')}${phoneParam ? `&phone=${encodeURIComponent(phoneParam)}&otp_sent=1` : ''}${abhaProfile?.name ? `&name=${encodeURIComponent(abhaProfile.name)}` : ''}${abhaProfile?.abha_number ? `&abha=${encodeURIComponent(abhaProfile.abha_number)}` : ''}${sessionToken ? `&token=${encodeURIComponent(sessionToken)}` : ''}`;
 
   return (
-    <div className="kiosk-container">
-      {/* Top Kiosk Banner */}
-      <div style={{ backgroundColor: 'var(--gov-primary)', color: '#FFF', padding: '16px 24px', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', boxShadow: 'var(--shadow-md)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <Building2 size={32} />
-          <div>
-            <h2 style={{ fontSize: '20px', fontWeight: '800' }}>{currentHospital?.name || 'District Civil & AYUSH Hospital'}</h2>
-            <p style={{ fontSize: '12px', opacity: 0.88 }}>OPD Smart Kiosk Terminal #1 • National Health Mission & Ministry of Ayush</p>
+    <ScrollableContentArea className={`kiosk-container ${step === 'idle' ? 'idle-mode' : ''}`}>
+      {/* Terminal Banner for Active Steps */}
+      {step !== 'idle' && (
+        <section className="kiosk-terminal-banner" aria-label={translate('Terminal Identification')}>
+          <div className="kiosk-terminal-banner-info">
+            <div style={{ width: '32px', height: '32px', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Building2 size={18} color="#FFFFFF" />
+            </div>
+            <div>
+              <h2>{currentHospital?.name || translate('District Civil & AYUSH Hospital')}</h2>
+              <p>{translate('OPD Registration & Clinical Case-Taking')}</p>
+            </div>
           </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {/* Bilingual Switcher */}
-          <div style={{ display: 'flex', gap: '4px', backgroundColor: 'rgba(255,255,255,0.15)', padding: '2px 4px', borderRadius: '6px' }}>
-            <button 
-              className={`gov-btn gov-btn-sm ${currentLang === 'en' ? 'gov-btn-accent' : 'gov-btn-outline'}`}
-              style={{ color: '#FFF', border: 'none' }}
-              onClick={() => setCurrentLang('en')}
-            >
-              English
-            </button>
-            <button 
-              className={`gov-btn gov-btn-sm ${currentLang === 'hi' ? 'gov-btn-accent' : 'gov-btn-outline'}`}
-              style={{ color: '#FFF', border: 'none' }}
-              onClick={() => setCurrentLang('hi')}
-            >
-              हिन्दी
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button type="button" className="gov-btn gov-btn-outline gov-btn-sm" style={{ color: '#FFFFFF', borderColor: 'rgba(255,255,255,0.35)', backgroundColor: 'transparent' }} onClick={resetKiosk}>
+              <RefreshCw size={13} /> {translate('Reset Kiosk')}
             </button>
           </div>
+        </section>
+      )}
 
-          {step !== 'idle' && (
-            <button className="gov-btn gov-btn-outline gov-btn-sm" style={{ color: '#FFF', borderColor: 'rgba(255,255,255,0.4)' }} onClick={resetKiosk}>
-              <RefreshCw size={14} /> Reset
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Official Government Step Indicator (Form OPD-01) */}
+      {step !== 'idle' && step !== 'phone_qr_display' && (
+        <GovStepIndicator
+          formCode="OPD-01"
+          currentStep={
+            step === 'abha_login' || step === 'platform_choice' || step === 'otp_verify' ? 1
+            : step === 'consent' ? 2
+            : step === 'doc_upload' || step === 'ai_inquiry' ? 3
+            : 4
+          }
+          totalSteps={4}
+          titleEn={
+            step === 'abha_login' || step === 'platform_choice' || step === 'otp_verify' ? 'Personal Details'
+            : step === 'consent' ? 'Patient Consent'
+            : step === 'doc_upload' || step === 'ai_inquiry' ? 'Symptoms Inquiry'
+            : 'OPD Queue Token'
+          }
+          titleHi={
+            step === 'abha_login' || step === 'platform_choice' || step === 'otp_verify' ? 'व्यक्तिगत विवरण'
+            : step === 'consent' ? 'रोगी सहमति'
+            : step === 'doc_upload' || step === 'ai_inquiry' ? 'लक्षण जांच'
+            : 'ओपीडी कतार टोकन'
+          }
+          steps={[
+            { number: 1, labelEn: 'Personal Details', labelHi: 'व्यक्तिगत विवरण' },
+            { number: 2, labelEn: 'Consent', labelHi: 'सहमति' },
+            { number: 3, labelEn: 'Symptoms', labelHi: 'लक्षण' },
+            { number: 4, labelEn: 'Token', labelHi: 'टोकन' }
+          ]}
+        />
+      )}
 
+      {/* Error Banner */}
       {error && (
-        <div style={{ backgroundColor: 'var(--status-red-bg)', color: 'var(--status-red)', padding: '14px 18px', borderRadius: '10px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '600' }}>
-          <AlertCircle size={20} />
+        <div role="alert" style={{ backgroundColor: 'var(--status-priority-bg)', color: 'var(--status-priority)', border: '1px solid var(--status-priority-border)', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '600', fontSize: '13.5px' }}>
+          <AlertCircle size={16} />
           <span>{error}</span>
         </div>
       )}
 
-      {/* 1. IDLE STATE */}
+      {/* ========== 1. IDLE SCREEN ========== */}
       {step === 'idle' && (
         <div className="kiosk-idle-hero">
-          <HeartPulse size={64} color="var(--gov-accent)" style={{ margin: '0 auto 16px' }} />
-          <h1 style={{ fontSize: '32px', fontWeight: '900', color: 'var(--gov-primary)', marginBottom: '8px' }}>
-            {t.welcome}
-          </h1>
-          <p style={{ fontSize: '18px', color: 'var(--gov-text-muted)', maxWidth: '600px', margin: '0 auto' }}>
-            {t.sub}
+          <div style={{ width: '56px', height: '56px', margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src={opdHeroIcon} alt="OPD Smart Intake" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
+          <h1 className="kiosk-hero-main-title">{translate('OPD Smart Intake Terminal')}</h1>
+          <p className="kiosk-hero-sub-title">{translate('OPD Smart Intake Terminal Sub')}</p>
+          <p className="kiosk-hero-caption">
+            {translate('Touch screen to begin check-in')}
           </p>
-
-          <div className="kiosk-action-cards">
-            <div className="kiosk-card-btn primary" onClick={() => setStep('phone_otp')}>
-              <User size={44} />
-              <div>
-                <h3 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '6px' }}>{t.start_btn}</h3>
-                <p style={{ opacity: 0.9, fontSize: '14px' }}>Fast symptom intake & instant doctor queue token</p>
+          <div className="kiosk-action-cards" style={{ gridTemplateColumns: '1fr', maxWidth: '640px', margin: '14px auto 0', gap: '14px' }}>
+            {/* Primary CTA: Start Patient Intake */}
+            <div
+              role="button"
+              tabIndex={0}
+              className="kiosk-card-btn primary kiosk-hero-btn-large"
+              onClick={() => setStep('abha_login')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setStep('abha_login'); }}
+            >
+              <div className="kiosk-card-icon-box primary-icon-box">
+                <img src={patientIntakeIcon} alt="Patient Intake" className="kiosk-patient-icon" />
               </div>
-            </div>
-
-            <div className="kiosk-card-btn" onClick={openKioskPresenceQR}>
-              <QrCode size={44} color="var(--gov-accent)" />
-              <div>
-                <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--gov-text-main)', marginBottom: '6px' }}>
-                  {t.verify_btn}
-                </h3>
-                <p style={{ color: 'var(--gov-text-muted)', fontSize: '14px' }}>
-                  Scan presence QR if you started on your phone
+              <div style={{ flex: 1 }}>
+                <h3>{translate('Start Patient Intake')}</h3>
+                <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '13px' }}>
+                  {translate('New OPD consultation check-in & queue token')}
                 </p>
               </div>
+              <ChevronRight size={28} />
             </div>
+
+            {/* Secondary CTA: Rapid Walk-In Token */}
+            <div
+              role="button"
+              tabIndex={0}
+              className="kiosk-card-btn"
+              onClick={() => setStep('consent')}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setStep('consent'); }}
+              style={{ borderColor: 'var(--gov-border)', background: '#FFFFFF', padding: '14px 20px' }}
+            >
+              <div className="kiosk-card-icon-box secondary-icon-box" style={{ background: '#FEF3C7', borderColor: '#FCD34D' }}>
+                <Zap size={28} color="#B45309" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ color: '#0B1F3A', fontSize: '17px', fontWeight: 700 }}>
+                  {translate('Rapid Walk-In Token')}
+                </h3>
+                <p style={{ color: 'var(--gov-text-muted)', fontSize: '12.5px' }}>
+                  {translate('Instant emergency token without mobile/ABHA')}
+                </p>
+              </div>
+              <ChevronRight size={22} color="#0B1F3A" />
+            </div>
+          </div>
+          <div style={{ marginTop: '16px', fontSize: '11.5px', color: 'var(--gov-text-subtle)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>Terminal #01</span><span style={{ color: '#CBD5E1' }}>|</span><span>National Health Mission & Ministry of Ayush OPD Gateway</span>
           </div>
         </div>
       )}
 
-      {/* 2. PHONE OTP STEP */}
-      {step === 'phone_otp' && (
-        <div className="gov-card" style={{ maxWidth: '540px', margin: '0 auto', textAlign: 'center' }}>
-          <Phone size={48} color="var(--gov-primary)" style={{ margin: '0 auto 16px' }} />
-          <h2 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px' }}>{t.enter_phone}</h2>
-          <p style={{ color: 'var(--gov-text-muted)', marginBottom: '24px', fontSize: '14px' }}>
-            We verify patient identity securely via a 6-digit SMS OTP.
-          </p>
+      {/* ========== 2. PLATFORM CHOICE (after ABHA login) ========== */}
+      {step === 'platform_choice' && (
+        <div className="gov-card" style={{ maxWidth: '720px', margin: '0 auto', textAlign: 'center' }}>
+          {abhaProfile && (
+            <div style={{ backgroundColor: 'var(--status-completed-bg)', color: 'var(--status-completed)', border: '1px solid var(--status-completed-border)', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: '18px', fontSize: '13px', fontWeight: '600' }}>
+              ✓ Verified: {abhaProfile.name} • +91-{linkedPhone?.slice(0, 2)}****{linkedPhone?.slice(-2)}
+            </div>
+          )}
+          <div style={{ width: '56px', height: '56px', margin: '0 auto 12px', backgroundColor: 'var(--gov-primary-light)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Stethoscope size={30} color="var(--gov-primary)" />
+          </div>
+          <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '6px' }}>{t.platform_title}</h2>
+          <p style={{ color: 'var(--gov-text-muted)', marginBottom: '28px', fontSize: '15px' }}>Select your preferred platform to complete the OPD intake process.</p>
 
-          <div className="gov-input-group" style={{ textAlign: 'left' }}>
-            <label>Mobile Number (10 Digits)</label>
-            <input 
-              type="tel"
-              className="gov-input touch-target-lg"
-              placeholder="e.g. 9876543210"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              disabled={otpSent}
-              autoFocus
+          <div className="kiosk-action-cards" style={{ marginTop: 0 }}>
+            <div role="button" tabIndex={0} className="kiosk-card-btn primary" onClick={() => handlePlatformSelect('kiosk')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handlePlatformSelect('kiosk'); }}>
+              <Tablet size={38} />
+              <div style={{ flex: 1 }}>
+                <h3>{t.platform_kiosk}</h3>
+                <p>{t.platform_kiosk_desc}</p>
+              </div>
+              <ChevronRight size={22} />
+            </div>
+            <div role="button" tabIndex={0} className="kiosk-card-btn" onClick={() => handlePlatformSelect('mobile')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handlePlatformSelect('mobile'); }}>
+              <Smartphone size={38} color="var(--gov-accent)" />
+              <div style={{ flex: 1 }}>
+                <h3 style={{ color: 'var(--gov-primary)' }}>{t.platform_phone}</h3>
+                <p>{t.platform_phone_desc}</p>
+              </div>
+              <ChevronRight size={22} color="var(--gov-text-subtle)" />
+            </div>
+          </div>
+
+          {loading && (
+            <div style={{ marginTop: '16px', textAlign: 'center', color: 'var(--gov-text-muted)', fontWeight: '600', fontSize: '14px' }}>
+              Sending OTP to your linked mobile...
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========== 3. PATIENT IDENTITY CHECK-IN (Single Decision Method Selector per Rule H) ========== */}
+      {step === 'abha_login' && (
+        <div style={{ maxWidth: '680px', margin: '0 auto', width: '100%' }}>
+          <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'flex-start' }}>
+            <button
+              type="button"
+              className="gov-btn gov-btn-outline gov-btn-sm"
+              onClick={() => { setStep('idle'); setKioskAuthMethod(null); }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <ArrowLeft size={15} /> {translate('Back to Home')}
+            </button>
+          </div>
+
+          <div className="gov-card" style={{ padding: '24px 28px', border: '1.5px solid var(--gov-border-strong)' }}>
+            {!kioskAuthMethod ? (
+              /* Single-Decision Method Selector: 2 large icon cards */
+              <LoginMethodSelector
+                onSelectMethod={(method) => {
+                  setKioskAuthMethod(method);
+                  setError(null);
+                }}
+              />
+            ) : (
+              /* Shared Unified LoginForm */
+              <LoginForm
+                method={kioskAuthMethod}
+                value={kioskAuthMethod === 'abha' ? abhaInput : kioskPhoneInput}
+                onChange={kioskAuthMethod === 'abha' ? setAbhaInput : setKioskPhoneInput}
+                onSubmit={kioskAuthMethod === 'abha' ? handleAbhaVerify : handleKioskMobileVerify}
+                loading={loading}
+                onChangeMethod={() => { setKioskAuthMethod(null); setError(null); }}
+                onCreateAbhaClick={() => setShowAbhaModal(true)}
+                isPhoneView={false}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========== 4. OTP VERIFICATION (6 Separate Auto-Advancing Boxes) ========== */}
+      {step === 'otp_verify' && (
+        <div className="gov-card" style={{ maxWidth: '540px', margin: '0 auto', textAlign: 'center', padding: '28px 24px' }}>
+          <div style={{ width: '56px', height: '56px', margin: '0 auto 16px', backgroundColor: 'var(--gov-primary-light)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Phone size={28} color="var(--gov-primary)" />
+          </div>
+
+          <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '6px' }}>{t.otp_title}</h2>
+          <p style={{ color: 'var(--gov-text-muted)', marginBottom: '8px', fontSize: '14px' }}>{t.otp_sub}</p>
+
+          {abhaProfile && (
+            <div style={{ backgroundColor: 'var(--status-completed-bg)', color: 'var(--status-completed)', border: '1px solid var(--status-completed-border)', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '13px', fontWeight: '600' }}>
+              ✓ ABHA Verified: {abhaProfile.name} • +91-{linkedPhone?.slice(0, 2)}****{linkedPhone?.slice(-2)}
+            </div>
+          )}
+
+          {otpNotice && (
+            <div style={{ backgroundColor: 'var(--gov-primary-light)', color: 'var(--gov-primary)', border: '1px solid var(--gov-primary-border)', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '13px', fontWeight: '600' }}>
+              ✓ {otpNotice}
+            </div>
+          )}
+
+          <div className="gov-input-group" style={{ textAlign: 'center', marginTop: '10px' }}>
+            <label htmlFor="kiosk-otp-input" style={{ display: 'block', marginBottom: '8px', fontWeight: '700', fontSize: '15px' }}>
+              {translate('6-Digit Verification Code')}
+            </label>
+            <OtpInputBox
+              value={otp}
+              onChange={setOtp}
+              length={6}
+              autoFocus={true}
             />
           </div>
 
-          {!otpSent ? (
-            <button 
-              className="gov-btn gov-btn-primary gov-btn-lg" 
-              style={{ width: '100%', marginTop: '8px' }}
-              onClick={handleSendOtp}
-              disabled={loading || phone.length < 10}
+          <button type="button" className="gov-btn gov-btn-accent gov-btn-lg" style={{ width: '100%', marginTop: '16px', minHeight: '52px', fontSize: '16px', fontWeight: '800' }} onClick={handleVerifyOtp} disabled={loading || otp.length < 6}>
+            {loading ? 'Verifying...' : t.verify_otp} <CheckCircle2 size={18} />
+          </button>
+
+          <button type="button" className="gov-btn gov-btn-outline" style={{ width: '100%', marginTop: '12px', fontSize: '13px' }} onClick={() => { setStep('abha_login'); setOtp(''); setOtpSent(false); }}>
+            {translate('Change Credentials / Resend OTP')}
+          </button>
+        </div>
+      )}
+
+      {/* ========== 4.5 CONSENT SCREEN ========== */}
+      {step === 'consent' && (
+        <div className="gov-card" style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center', padding: '36px 28px' }}>
+          <div style={{ width: '60px', height: '60px', margin: '0 auto 16px', backgroundColor: '#e8f5e9', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #a5d6a7' }}>
+            <Shield size={30} color="#2e7d32" />
+          </div>
+
+          <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '8px' }}>
+            {translate('consent_title')}
+          </h2>
+          <p style={{ color: 'var(--gov-text-muted)', marginBottom: '24px', fontSize: '14px' }}>
+            {translate('consent_sub')}
+          </p>
+
+          <div style={{
+            textAlign: 'left',
+            backgroundColor: 'var(--gov-surface-subtle)',
+            border: '1px solid var(--gov-border)',
+            borderRadius: 'var(--radius-md)',
+            padding: '20px',
+            marginBottom: '24px',
+            fontSize: '13.5px',
+            lineHeight: '1.65',
+            color: 'var(--gov-text-main)'
+          }}>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', alignItems: 'flex-start' }}>
+              <CheckCircle2 size={18} color="var(--gov-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span>{translate('consent_item_1')}</span>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '14px', alignItems: 'flex-start' }}>
+              <CheckCircle2 size={18} color="var(--gov-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span>{translate('consent_item_2')}</span>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <CheckCircle2 size={18} color="var(--gov-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span>{translate('consent_item_3')}</span>
+            </div>
+          </div>
+
+          <div className="gov-sticky-cta-dock" style={{ marginTop: '20px' }}>
+            <button
+              type="button"
+              className="gov-btn gov-btn-primary gov-btn-lg"
+              style={{ width: '100%', padding: '14px' }}
+              onClick={handleConsentAgree}
+              disabled={loading}
             >
-              {loading ? 'Sending OTP via SMS...' : t.send_otp} <ArrowRight size={20} />
+              {loading ? translate('Starting...') : translate('I Agree — Proceed')} <ArrowRight size={18} />
             </button>
-          ) : (
-            <>
-              {otpNotice && (
-                <div style={{ backgroundColor: 'var(--status-green-bg)', color: 'var(--status-green)', padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', fontWeight: '600' }}>
-                  ✓ {otpNotice}
+
+            <button
+              type="button"
+              className="gov-btn gov-btn-outline"
+              style={{ width: '100%', marginTop: '10px', fontSize: '13px' }}
+              onClick={resetKiosk}
+            >
+              {translate('Cancel & Return to Home')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========== 4.5 DOCUMENT UPLOAD (Before AI Inquiry) ========== */}
+      {step === 'doc_upload' && (
+        <div className="gov-card" style={{ maxWidth: '620px', margin: '0 auto', textAlign: 'center', padding: '32px 28px' }}>
+          <div style={{ width: '56px', height: '56px', margin: '0 auto 14px', backgroundColor: '#e3f2fd', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #90caf9' }}>
+            <FileUp size={28} color="#1565c0" />
+          </div>
+
+          <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '6px' }}>
+            {translate('Upload Documents (Optional)')}
+          </h2>
+          <p style={{ color: 'var(--gov-text-muted)', marginBottom: '22px', fontSize: '14px' }}>
+            {translate('doc_upload_sub')}
+          </p>
+
+          {/* Upload Area */}
+          <label
+            htmlFor="kiosk-doc-upload"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '28px 20px',
+              border: '2px dashed var(--gov-border-strong)',
+              borderRadius: 'var(--radius-lg)',
+              cursor: 'pointer',
+              backgroundColor: 'var(--gov-surface-subtle)',
+              transition: 'all 0.18s ease',
+              marginBottom: '16px'
+            }}
+          >
+            <Upload size={32} color="var(--gov-primary)" />
+            <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--gov-primary)' }}>
+              {translate('Tap to choose a file')}
+            </span>
+            <span style={{ fontSize: '12px', color: 'var(--gov-text-muted)' }}>
+              PDF, JPG, PNG — Max 10MB
+            </span>
+            <input
+              id="kiosk-doc-upload"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              style={{ display: 'none' }}
+              onChange={(e) => handleDocUpload(e.target.files[0])}
+              disabled={uploadLoading}
+            />
+          </label>
+
+          {uploadLoading && (
+            <div style={{ marginBottom: '12px', color: 'var(--gov-accent)', fontWeight: '600', fontSize: '13px' }}>
+              {translate('Uploading & extracting text...')}
+            </div>
+          )}
+
+          {/* Uploaded Documents List */}
+          {uploadedDocs.length > 0 && (
+            <div style={{ textAlign: 'left', marginBottom: '16px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--gov-text-main)', marginBottom: '8px' }}>
+                ✓ {uploadedDocs.length} document{uploadedDocs.length > 1 ? 's' : ''} uploaded
+              </div>
+              {uploadedDocs.map((doc, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    backgroundColor: 'var(--status-completed-bg)',
+                    borderRadius: 'var(--radius-sm)',
+                    marginBottom: '6px',
+                    fontSize: '12.5px',
+                    color: 'var(--status-completed)'
+                  }}
+                >
+                  <FileText size={14} />
+                  <span style={{ flex: 1 }}>{doc.doc_type?.toUpperCase() || 'DOCUMENT'} — OCR extracted</span>
+                  <CheckCircle2 size={14} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Action Button — proceed to AI Inquiry */}
+          <div className="gov-sticky-cta-dock" style={{ marginTop: '20px' }}>
+            <button
+              type="button"
+              className="gov-btn gov-btn-primary gov-btn-lg"
+              style={{ width: '100%' }}
+              onClick={handleProceedToInquiry}
+              disabled={loading}
+            >
+              {loading ? translate('Starting...') : translate('Start AI Doctor Consultation (Voice/Chat)')} <ArrowRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========== 5. AI INQUIRY CONVERSATION ========== */}
+      {step === 'ai_inquiry' && (
+        <div className="ai-inquiry-container">
+          <div className="ai-inquiry-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="ai-inquiry-avatar">
+                <Bot size={24} color="#FFFFFF" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--gov-primary)', margin: 0 }}>{t.inquiry_title}</h2>
+                <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)', margin: 0 }}>{t.inquiry_sub}</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {uploadedDocs.length > 0 && (
+                <div style={{ fontSize: '11px', color: 'var(--status-completed)', backgroundColor: 'var(--status-completed-bg)', border: '1px solid var(--status-completed-border)', padding: '4px 10px', borderRadius: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <FileText size={12} /> {uploadedDocs.length} doc{uploadedDocs.length > 1 ? 's' : ''}
                 </div>
               )}
+              {abhaProfile && (
+                <div style={{ fontSize: '12px', color: 'var(--gov-text-subtle)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <UserCircle size={14} /> {abhaProfile.name}
+                </div>
+              )}
+            </div>
+          </div>
 
-              <div className="gov-input-group" style={{ textAlign: 'left' }}>
-                <label>Enter 6-Digit OTP received on SMS</label>
-                <input 
-                  type="text"
-                  className="gov-input touch-target-lg"
-                  placeholder="• • • • • •"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  maxLength={6}
-                  style={{ textAlign: 'center', letterSpacing: '6px', fontSize: '24px', fontWeight: '800' }}
-                  autoFocus
-                />
+          {/* Chat Messages */}
+          <div className="ai-chat-messages">
+            {/* Welcome message */}
+            <div className="ai-chat-bubble ai-bubble">
+              <Bot size={16} className="ai-bubble-icon" />
+              <div className="ai-bubble-content">
+                <p><NamasteIcon size={16} color="var(--gov-primary)" /> {translate('ai_welcome_intro')}{uploadedDocs.length > 0 ? ` ${translate('ai_welcome_reviewed')}` : ''}</p>
+              </div>
+            </div>
+
+            {/* Conversation History */}
+            {conversationHistory.map((entry, i) => (
+              <React.Fragment key={i}>
+                <div className="ai-chat-bubble ai-bubble">
+                  <Bot size={16} className="ai-bubble-icon" />
+                  <div className="ai-bubble-content">
+                    <p>{entry.question}</p>
+                  </div>
+                </div>
+                <div className="ai-chat-bubble patient-bubble">
+                  <div className="ai-bubble-content">
+                    <p>{entry.answer}</p>
+                  </div>
+                  <UserCircle size={16} className="patient-bubble-icon" />
+                </div>
+              </React.Fragment>
+            ))}
+
+            {/* Current Question */}
+            {currentQuestion && (
+              <div className="ai-chat-bubble ai-bubble">
+                <Bot size={16} className="ai-bubble-icon" />
+                <div className="ai-bubble-content">
+                  <p style={{ fontWeight: '600' }}>{currentQuestion.question?.[currentLang] || currentQuestion.question?.en}</p>
+                  {currentQuestion.help_text && (
+                    <p style={{ fontSize: '12.5px', color: 'var(--gov-text-muted)', marginTop: '4px' }}>
+                      {currentQuestion.help_text?.[currentLang] || currentQuestion.help_text?.en}
+                    </p>
+                  )}
+
+                  {/* Option Buttons */}
+                  {currentQuestion.options && currentQuestion.options.length > 0 && (
+                    <div className="ai-options-grid">
+                      {currentQuestion.options.map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          className="ai-option-btn"
+                          onClick={() => handleOptionSelect(opt.id, opt.label)}
+                          disabled={loading}
+                        >
+                          {opt.label?.[currentLang] || opt.label?.en}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {loading && (
+              <div className="ai-chat-bubble ai-bubble">
+                <Bot size={16} className="ai-bubble-icon" />
+                <div className="ai-bubble-content">
+                  <div className="ai-typing-indicator">
+                    <span></span><span></span><span></span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input Bar */}
+          <div className="ai-input-bar">
+            <button
+              type="button"
+              className={`ai-voice-btn ${isRecording ? 'recording' : ''}`}
+              onClick={handleVoiceInput}
+              disabled={loading}
+              title={isRecording ? translate('Tap to stop recording') : translate('Press to Speak')}
+            >
+              {isRecording ? <Volume2 size={22} /> : <Mic size={22} />}
+            </button>
+            <input
+              type="text"
+              className="ai-text-input"
+              placeholder={t.type_placeholder}
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleTextSubmit(); }}
+              disabled={loading}
+            />
+            <button type="button" className="ai-send-btn" onClick={handleTextSubmit} disabled={loading || !textInput.trim()}>
+              <Send size={20} />
+            </button>
+          </div>
+          {voiceNotice && <div style={{ padding: '6px 16px', fontSize: '12px', color: 'var(--gov-accent)', fontWeight: '600', textAlign: 'center' }}>{voiceNotice}</div>}
+        </div>
+      )}
+
+      {/* ========== 6. CLINICAL REPORT ========== */}
+      {step === 'report' && (
+        <div className="gov-card" style={{ maxWidth: '720px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ width: '56px', height: '56px', margin: '0 auto 12px', backgroundColor: 'var(--gov-primary-light)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ClipboardList size={28} color="var(--gov-primary)" />
+            </div>
+            <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '6px' }}>{t.report_title}</h2>
+            <p style={{ color: 'var(--gov-text-muted)', fontSize: '14px' }}>{t.report_sub}</p>
+          </div>
+
+          {loading && !clinicalReport && (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <div className="ai-typing-indicator" style={{ justifyContent: 'center', marginBottom: '16px' }}>
+                <span></span><span></span><span></span>
+              </div>
+              <p style={{ color: 'var(--gov-text-muted)', fontWeight: '600' }}>Generating your clinical report...</p>
+            </div>
+          )}
+
+          {clinicalReport && (
+            <>
+              {/* Report Card */}
+              <div className="clinical-report-card">
+                <div className="report-section">
+                  <h4><Activity size={16} /> Chief Complaint</h4>
+                  <p>{clinicalReport.chief_complaint || 'General Consultation'}</p>
+                </div>
+
+                <div className="report-section">
+                  <h4><FileText size={16} /> Symptom Summary</h4>
+                  <p>{clinicalReport.symptom_summary || clinicalReport.report_text_en}</p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
+                  <div className="report-badge">
+                    <span className="report-badge-label">Severity</span>
+                    <span className={`report-badge-value severity-${clinicalReport.severity_assessment || 'moderate'}`}>
+                      {(clinicalReport.severity_assessment || 'moderate').toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="report-badge">
+                    <span className="report-badge-label">Urgency</span>
+                    <span className={`report-badge-value urgency-${clinicalReport.urgency_flag || 'routine'}`}>
+                      {(clinicalReport.urgency_flag || 'routine').toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="report-section" style={{ marginTop: '16px' }}>
+                  <h4><Stethoscope size={16} /> Recommended Department</h4>
+                  <p style={{ fontWeight: '700', color: 'var(--gov-accent)', fontSize: '16px' }}>
+                    {clinicalReport.recommended_department || 'General Medicine'}
+                  </p>
+                </div>
+
+                {clinicalReport.clinical_notes && (
+                  <div className="report-section">
+                    <h4><MessageCircle size={16} /> Clinical Notes</h4>
+                    <p>{clinicalReport.clinical_notes}</p>
+                  </div>
+                )}
+
+                {clinicalReport.history_summary && clinicalReport.history_summary !== 'No prior records.' && (
+                  <div className="report-section">
+                    <h4><ClipboardList size={16} /> Medical History</h4>
+                    <p>{clinicalReport.history_summary}</p>
+                  </div>
+                )}
               </div>
 
-              <button 
-                className="gov-btn gov-btn-accent gov-btn-lg"
-                style={{ width: '100%', marginTop: '12px' }}
-                onClick={handleVerifyOtp}
-                disabled={loading || otp.length < 6}
-              >
-                {loading ? 'Verifying OTP...' : t.verify_otp} <CheckCircle2 size={20} />
-              </button>
-
-              <button 
-                className="gov-btn gov-btn-outline" 
-                style={{ width: '100%', marginTop: '10px', fontSize: '13px' }}
-                onClick={() => { setOtpSent(false); setOtp(''); }}
-              >
-                Change Mobile Number / Resend OTP
-              </button>
+              {/* Action Buttons */}
+              <div className="gov-sticky-cta-dock" style={{ marginTop: '24px' }}>
+                <button type="button" className="gov-btn gov-btn-primary gov-btn-lg" style={{ width: '100%' }} onClick={handleJoinQueue} disabled={loading}>
+                  {loading ? 'Processing...' : t.join_queue} <ArrowRight size={18} />
+                </button>
+              </div>
             </>
           )}
         </div>
       )}
 
-      {/* 3. POST-OTP CHOICE: CONTINUE ON KIOSK VS CONTINUE ON PHONE (QR) */}
-      {step === 'post_otp_choice' && (
-        <div className="gov-card" style={{ maxWidth: '720px', margin: '0 auto', textAlign: 'center' }}>
-          <CheckCircle2 size={52} color="var(--status-green)" style={{ margin: '0 auto 12px' }} />
-          <h2 style={{ fontSize: '26px', fontWeight: '900', color: 'var(--gov-primary)', marginBottom: '8px' }}>
-            Mobile Identity Verified (+91-{phone})
-          </h2>
-          <p style={{ color: 'var(--gov-text-muted)', marginBottom: '32px', fontSize: '15px' }}>
-            {t.choice_title}
-          </p>
+      {/* ========== 7. COMPLETION & TOKEN ========== */}
+      {step === 'completed' && issuedToken && (
+        <div className="gov-card" style={{ maxWidth: '640px', margin: '0 auto', textAlign: 'center', padding: '36px 28px' }}>
+          <div style={{ width: '64px', height: '64px', margin: '0 auto 16px', backgroundColor: 'var(--status-completed-bg)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--status-completed-border)' }}>
+            <CheckCircle2 size={36} color="var(--status-completed)" />
+          </div>
 
-          <div className="kiosk-action-cards" style={{ marginTop: 0 }}>
-            {/* Option A: Kiosk Screen */}
-            <div 
-              className="kiosk-card-btn primary" 
-              onClick={() => setStep('abha')}
-              style={{ padding: '32px 20px' }}
-            >
-              <Tablet size={44} />
-              <div>
-                <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '6px' }}>
-                  {t.choice_kiosk}
-                </h3>
-                <p style={{ fontSize: '13px', opacity: 0.9 }}>
-                  {t.choice_kiosk_desc}
-                </p>
-              </div>
+          <h2 style={{ fontSize: '26px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '6px' }}>{t.intake_done}</h2>
+          <p style={{ color: 'var(--gov-text-muted)', marginBottom: '24px', fontSize: '14.5px' }}>{t.proceed_msg}</p>
+
+          <div style={{ backgroundColor: 'var(--gov-primary-light)', border: '2px solid var(--gov-primary-border)', padding: '24px', borderRadius: 'var(--radius-lg)', margin: '20px 0' }}>
+            <div style={{ fontSize: '12px', textTransform: 'uppercase', fontWeight: '800', color: 'var(--gov-text-muted)', letterSpacing: '0.5px' }}>{t.token_issued}</div>
+            <div style={{ fontSize: '64px', fontWeight: '900', color: 'var(--gov-primary)', lineHeight: 1.1, margin: '8px 0' }}>#{issuedToken.token_number}</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--gov-text-main)', marginTop: '4px' }}>
+              {issuedToken.department_name || 'General OPD'}
             </div>
-
-            {/* Option B: Scannable Personal Phone QR */}
-            <div 
-              className="kiosk-card-btn" 
-              onClick={() => setStep('phone_qr_display')}
-              style={{ padding: '32px 20px', borderColor: 'var(--gov-accent)' }}
-            >
-              <Smartphone size={44} color="var(--gov-accent)" />
-              <div>
-                <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--gov-text-main)', marginBottom: '6px' }}>
-                  {t.choice_phone}
-                </h3>
-                <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)' }}>
-                  {t.choice_phone_desc}
-                </p>
+            {issuedToken.doctor_name && (
+              <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--gov-accent)', marginTop: '4px' }}>
+                {translate('Doctor:')} {issuedToken.doctor_name}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4. REAL PHONE QR DISPLAY (ANY CAMERA / GOOGLE LENS OPENS URL) */}
-      {step === 'phone_qr_display' && (
-        <div className="gov-card" style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center', padding: '36px 24px' }}>
-          <Smartphone size={48} color="var(--gov-accent)" style={{ margin: '0 auto 12px' }} />
-          <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'var(--gov-primary)', marginBottom: '8px' }}>
-            {t.scan_phone_title}
-          </h2>
-          <p style={{ fontSize: '14px', color: 'var(--gov-text-muted)', marginBottom: '24px', maxWidth: '440px', margin: '0 auto 24px' }}>
-            {t.scan_phone_sub}
-          </p>
-
-          {/* Real High-Res QR Code SVG */}
-          <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '16px', display: 'inline-block', boxShadow: 'var(--shadow-md)', border: '3px solid var(--gov-primary)', marginBottom: '20px' }}>
-            <QRCodeSVG 
-              value={mobileIntakeUrl} 
-              size={220}
-              level="H"
-              includeMargin={true}
-            />
-          </div>
-
-          <div style={{ backgroundColor: 'var(--gov-primary-light)', padding: '12px 16px', borderRadius: '8px', maxWidth: '480px', margin: '0 auto 24px', fontSize: '12px', color: 'var(--gov-primary)', wordBreak: 'break-all' }}>
-            <b>Direct URL:</b> {mobileIntakeUrl}
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-            <button className="gov-btn gov-btn-outline" onClick={() => setStep('post_otp_choice')}>
-              Back
-            </button>
-            <button className="gov-btn gov-btn-primary" onClick={resetKiosk}>
-              Done / Return to Idle Screen
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 5. ABHA STEP ON KIOSK */}
-      {step === 'abha' && (
-        <div className="gov-card" style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-          <Sparkles size={48} color="var(--gov-accent)" style={{ margin: '0 auto 16px' }} />
-          <h2 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px' }}>{t.abha_title}</h2>
-          <p style={{ color: 'var(--gov-text-muted)', marginBottom: '24px', fontSize: '14px' }}>{t.abha_sub}</p>
-
-          <div className="gov-input-group" style={{ textAlign: 'left' }}>
-            <label>ABHA Address / 14-Digit Number</label>
-            <input 
-              type="text" 
-              className="gov-input touch-target-lg"
-              placeholder="e.g. 91-8844-3322-1100 or username@abdm"
-              value={abhaId}
-              onChange={(e) => setAbhaId(e.target.value)}
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-            <button 
-              className="gov-btn gov-btn-outline gov-btn-lg" 
-              style={{ flex: 1 }}
-              onClick={() => setStep('dept_select')}
-            >
-              {t.abha_skip}
-            </button>
-            <button 
-              className="gov-btn gov-btn-primary gov-btn-lg" 
-              style={{ flex: 1.2 }}
-              onClick={() => setStep('dept_select')}
-            >
-              {t.abha_save} <ArrowRight size={20} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 6. DEPARTMENT SELECTION (OPTIONAL) */}
-      {step === 'dept_select' && (
-        <div className="gov-card" style={{ maxWidth: '720px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '6px' }}>{t.dept_title}</h2>
-          <p style={{ color: 'var(--gov-text-muted)', marginBottom: '24px', fontSize: '14px' }}>{t.dept_sub}</p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '24px' }}>
-            <div 
-              className="kiosk-opt-btn"
-              onClick={() => startIntakeOnKiosk('dept-0002')} // AYUSH
-              style={{ padding: '20px', flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}
-            >
-              <div style={{ fontWeight: '800', fontSize: '18px', color: 'var(--gov-primary)' }}>
-                🌿 AYUSH (Ayurveda & Panchakarma)
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--gov-text-muted)' }}>
-                Prakriti, Dosha balance, Joint stiffness & Classical remedies
-              </div>
-            </div>
-
-            <div 
-              className="kiosk-opt-btn"
-              onClick={() => startIntakeOnKiosk('dept-0001')} // General Medicine
-              style={{ padding: '20px', flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}
-            >
-              <div style={{ fontWeight: '800', fontSize: '18px', color: 'var(--gov-primary)' }}>
-                🩺 General Medicine OPD
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--gov-text-muted)' }}>
-                Fever, Chest pain, Blood Pressure, Diabetes & Infections
-              </div>
-            </div>
-          </div>
-
-          <button 
-            className="gov-btn gov-btn-accent gov-btn-lg"
-            style={{ width: '100%' }}
-            onClick={() => startIntakeOnKiosk(null)} // Null = Auto-route triage
-          >
-            {t.dept_skip} <ArrowRight size={20} />
-          </button>
-        </div>
-      )}
-
-      {/* 7. INTAKE DECISION TREE ON KIOSK */}
-      {step === 'intake' && currentNode && (
-        <div>
-          <div className="kiosk-question-box">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <span className="status-badge waiting">
-                Question Node: {currentNode.id}
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  className="gov-btn gov-btn-outline gov-btn-sm"
-                  onClick={handleSpeakQuestion}
-                  title="Read question aloud (Audio TTS)"
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', fontSize: '12px' }}
-                >
-                  <Volume2 size={14} color="var(--gov-accent)" />
-                  <span>Listen</span>
-                </button>
-                <span style={{ fontSize: '14px', color: 'var(--gov-text-muted)', fontWeight: '600' }}>
-                  Question {responses.length + 1}
-                </span>
-              </div>
-            </div>
-
-            <h2 className="kiosk-question-title">
-              {currentNode.question?.[currentLang] || currentNode.question?.en}
-            </h2>
-            {currentNode.help_text && (
-              <p className="kiosk-question-sub">
-                {currentNode.help_text?.[currentLang] || currentNode.help_text?.en}
-              </p>
             )}
-
-            <div className="kiosk-options-grid">
-              {currentNode.options?.map((opt) => (
-                <button
-                  key={opt.id}
-                  className="kiosk-opt-btn"
-                  onClick={() => handleAnswer(opt.id)}
-                  disabled={loading}
-                >
-                  <span>{opt.label?.[currentLang] || opt.label?.en}</span>
-                  <ArrowRight size={22} color="var(--gov-primary)" />
-                </button>
-              ))}
-            </div>
-
-            <div className="kiosk-voice-control">
-              <p style={{ fontWeight: '700', marginBottom: '16px', color: 'var(--gov-text-main)' }}>
-                {t.voice_prompt}
-              </p>
-              <button 
-                className={`voice-mic-btn ${isRecording ? 'recording' : ''}`}
-                onClick={handleVoiceInput}
-                disabled={isRecording || loading}
-                title="Voice Input (Speech Recognition + AI)"
-              >
-                {isRecording ? <MicOff size={32} /> : <Mic size={32} />}
-              </button>
-              <div style={{ marginTop: '12px', fontSize: '14px', fontWeight: '700', color: 'var(--gov-accent)' }}>
-                {isRecording ? t.voice_listening : t.voice_record}
+            {issuedToken.room_number && (
+              <div style={{ fontSize: '17px', fontWeight: '800', color: 'var(--gov-accent)', marginTop: '6px' }}>
+                {translate('Room:')} {issuedToken.room_number}
               </div>
-              {voiceNotice && (
-                <p style={{ marginTop: '8px', fontSize: '13px', color: 'var(--gov-text-muted)' }}>
-                  {voiceNotice}
-                </p>
+            )}
+            <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--status-completed)', fontWeight: '700' }}>
+              ✓ {translate('Queued for Consultation')}
+            </div>
+          </div>
+
+          <div className="gov-sticky-cta-dock" style={{ marginTop: '20px' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '14px', flexWrap: 'wrap', width: '100%' }}>
+              <button type="button" className="gov-btn gov-btn-accent gov-btn-lg" onClick={() => setShowReceiptSlip(true)} style={{ flex: 1 }}>
+                <Printer size={18} /> {translate('Print OPD Queue Slip')}
+              </button>
+              {abhaProfile?.abha_number && (
+                <button type="button" className="gov-btn gov-btn-outline gov-btn-lg" onClick={() => setShowAbhaModal(true)}>
+                  <ShieldCheck size={18} /> {translate('View ABHA Card')}
+                </button>
               )}
             </div>
+
+            <button type="button" className="gov-btn gov-btn-primary" onClick={resetKiosk} style={{ width: '100%', padding: '12px' }}>
+              {translate('Complete Session & Return to Main Screen')}
+            </button>
           </div>
         </div>
       )}
 
-      {/* 8. COMPLETED STEP */}
-      {step === 'completed' && issuedToken && (
-        <div className="gov-card" style={{ maxWidth: '640px', margin: '0 auto', textAlign: 'center', padding: '40px 32px' }}>
-          <CheckCircle2 size={64} color="var(--status-green)" style={{ margin: '0 auto 16px' }} />
-          <h2 style={{ fontSize: '28px', fontWeight: '900', color: 'var(--gov-primary)', marginBottom: '8px' }}>
-            {t.intake_done}
+      {/* ========== PHONE QR DISPLAY ========== */}
+      {step === 'phone_qr_display' && (
+        <div className="gov-card" style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center', padding: '32px 24px' }}>
+          <div style={{ width: '60px', height: '60px', margin: '0 auto 12px', backgroundColor: 'var(--gov-accent-light)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--gov-accent-border)' }}>
+            <Smartphone size={32} color="var(--gov-accent)" />
+          </div>
+          <h2 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '8px' }}>
+            {translate('Scan to Continue on Smartphone')}
           </h2>
-          <p style={{ color: 'var(--gov-text-muted)', marginBottom: '24px' }}>
-            {t.proceed_msg}
+          <p style={{ fontSize: '14.5px', color: 'var(--gov-text-muted)', marginBottom: '20px' }}>
+            {translate('scan_qr_sub')}
           </p>
 
-          <div style={{ backgroundColor: 'var(--gov-primary-light)', padding: '24px', borderRadius: '16px', margin: '24px 0', border: '2px solid #B9D5FF' }}>
-            <span style={{ fontSize: '13px', textTransform: 'uppercase', fontWeight: '700', color: 'var(--gov-text-muted)' }}>
-              {t.token_issued}
-            </span>
-            <div style={{ fontSize: '64px', fontWeight: '900', color: 'var(--gov-primary)', lineHeight: 1.1 }}>
-              #{issuedToken.token_number}
-            </div>
-            {issuedToken.room_number && (
-              <div style={{ marginTop: '8px', fontSize: '18px', fontWeight: '800', color: 'var(--gov-accent)' }}>
-                Assigned: {issuedToken.room_number}
-              </div>
-            )}
-            <div style={{ marginTop: '6px', fontSize: '14px', color: 'var(--status-green)', fontWeight: '700' }}>
-              ✓ Kiosk Presence Verified • Added to Live Doctor Queue
+          <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: 'var(--radius-lg)', display: 'inline-block', boxShadow: 'var(--shadow-md)', border: '3px solid var(--gov-primary)', marginBottom: '16px' }}>
+            <QRCodeSVG value={mobileIntakeUrl} size={220} level="H" includeMargin={true} />
+            <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--gov-text-muted)', fontFamily: 'monospace', wordBreak: 'break-all', maxWidth: '300px', margin: '12px auto 0', padding: '6px 10px', backgroundColor: 'var(--gov-surface-subtle)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--gov-border)' }}>
+              {mobileIntakeUrl}
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '16px' }}>
-            <button 
-              className="gov-btn gov-btn-accent gov-btn-lg"
-              onClick={() => setShowReceiptSlip(true)}
-              style={{ flex: 1 }}
-            >
-              <Printer size={20} /> Print Official OPD Slip
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '14px' }}>
+            <button type="button" className="gov-btn gov-btn-outline" onClick={() => setStep('platform_choice')}>
+              <ArrowLeft size={16} /> {translate('Back to Options')}
+            </button>
+            <button type="button" className="gov-btn gov-btn-primary" onClick={() => setStep('abha_login')}>
+              <Tablet size={16} /> {translate('Switch to Kiosk Instead')}
             </button>
           </div>
-
-          <button className="gov-btn gov-btn-primary gov-btn-lg" onClick={resetKiosk} style={{ width: '100%' }}>
-            Finish & Return to Home Screen
-          </button>
         </div>
       )}
 
-      {/* OPD Receipt Slip Modal */}
+      {/* Modals */}
       {showReceiptSlip && (
-        <OpdReceiptSlip 
-          token={issuedToken}
-          hospitalName={currentHospital?.name}
-          onClose={() => setShowReceiptSlip(false)}
-        />
+        <OpdReceiptSlip token={issuedToken} hospitalName={currentHospital?.name} onClose={() => setShowReceiptSlip(false)} />
       )}
-
-      {/* ABHA Card Modal */}
       {showAbhaModal && (
-        <AbhaCardModal 
-          abhaId={abhaId}
-          patientPhone={phone}
-          onClose={() => setShowAbhaModal(false)}
-        />
+        <AbhaCardModal abhaId={abhaProfile?.abha_number} patientPhone={linkedPhone} onClose={() => setShowAbhaModal(false)} />
       )}
-
-      {/* 9. KIOSK PRESENCE VERIFICATION QR MODAL */}
-      {step === 'kiosk_presence_qr' && kioskVerification && (
-        <div className="gov-modal-overlay">
-          <div className="gov-modal-content" style={{ textAlign: 'center' }}>
-            <QrCode size={52} color="var(--gov-primary)" style={{ margin: '0 auto 12px' }} />
-            <h2 style={{ fontSize: '22px', fontWeight: '900', color: 'var(--gov-primary)', marginBottom: '8px' }}>
-              Hospital Physical Presence Verification
-            </h2>
-            <p style={{ fontSize: '14px', color: 'var(--gov-text-muted)', marginBottom: '20px' }}>
-              Scan this QR or enter the code on your phone session to confirm physical presence at the hospital.
-            </p>
-
-            <div style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '12px', display: 'inline-block', border: '3px solid var(--gov-primary)', marginBottom: '16px' }}>
-              <QRCodeSVG 
-                value={`PRESENCE:${kioskVerification.code}`} 
-                size={180}
-                level="M"
-              />
-              <div style={{ fontSize: '22px', fontWeight: '900', letterSpacing: '3px', color: 'var(--gov-accent)', marginTop: '8px' }}>
-                {kioskVerification.code}
-              </div>
-            </div>
-
-            <p style={{ fontSize: '12px', color: 'var(--gov-text-muted)', marginBottom: '20px' }}>
-              Valid for 5 minutes • Single-use presence proof
-            </p>
-
-            <button className="gov-btn gov-btn-outline" onClick={() => setStep('idle')} style={{ width: '100%' }}>
-              Close QR Screen
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    </ScrollableContentArea>
   );
 }

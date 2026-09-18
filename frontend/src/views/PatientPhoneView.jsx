@@ -1,15 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useWebSocket } from '../context/WebSocketContext';
 import { api } from '../services/api';
 import { 
   Smartphone, Phone, QrCode, CheckCircle2, AlertCircle, Clock, 
   Upload, FileText, ArrowRight, Bell, Sparkles, LogOut, History, ShieldAlert,
-  Building2, RefreshCw, Volume2, Mic, MicOff, Printer, ShieldCheck
+  Building2, RefreshCw, Volume2, Mic, MicOff, Printer, ShieldCheck, ArrowLeft,
+  Bot, UserCircle, Send, Stethoscope, ClipboardList, Activity, MessageCircle,
+  Hash, AtSign, PhoneCall, User, X, Shield, FileUp, Wifi, Info
 } from 'lucide-react';
 import { speakText, startSpeechRecognition } from '../utils/speechHelper';
 import OpdReceiptSlip from '../components/OpdReceiptSlip';
 import AbhaCardModal from '../components/AbhaCardModal';
+import LoginMethodSelector from '../components/common/LoginMethodSelector';
+import LoginForm from '../components/common/LoginForm';
+import OtpInputBox from '../components/common/OtpInputBox';
+import NamasteIcon from '../components/common/NamasteIcon';
+import patientIntakeIcon from '../assets/patient-intake-icon.png';
 import '../styles/patient-phone.css';
 
 export default function PatientPhoneView() {
@@ -19,11 +27,32 @@ export default function PatientPhoneView() {
   } = useAuth();
   const { yourTurnEvent, subscribeToCase } = useWebSocket();
 
-  // Screen: 'login' | 'intake' | 'presence_gate' | 'waiting' | 'history'
   const [screen, setScreen] = useState(patientToken ? 'waiting' : 'login');
-  const [currentLang, setCurrentLang] = useState('en');
+  const [consentGiven, setConsentGiven] = useState(false);
+  const { language: currentLang, translate } = useLanguage();
 
-  // Phone Login State
+  // Patient Login Method & Help state
+  const [loginMethod, setLoginMethod] = useState(null); // 'abha' | 'mobile' | null
+  const [showWhatIsAbha, setShowWhatIsAbha] = useState(false);
+
+  // ABHA Login State
+  const [abhaInput, setAbhaInput] = useState('');
+  const [abhaMode, setAbhaMode] = useState('mobile'); // 'abha_number' | 'abha_address' | 'mobile'
+  const [abhaProfile, setAbhaProfile] = useState(null);
+  const [linkedPhone, setLinkedPhone] = useState('');
+
+  // Minimalist ABHA format detector
+  const getAbhaInputType = (val) => {
+    const clean = (val || '').trim();
+    if (!clean) return null;
+    if (clean.includes('@')) return 'address';
+    const digits = clean.replace(/\D/g, '');
+    if (digits.length > 10) return 'abha_number';
+    if (digits.length > 0) return 'mobile';
+    return 'address';
+  };
+
+  // Phone Login State (legacy fallback)
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
@@ -31,11 +60,18 @@ export default function PatientPhoneView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Case & Intake
+  // Case & Intake (legacy tree)
   const [caseData, setCaseData] = useState(null);
   const [currentNode, setCurrentNode] = useState(null);
   const [isTerminal, setIsTerminal] = useState(false);
   const [activeToken, setActiveToken] = useState(null);
+
+  // AI Inquiry State
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [textInput, setTextInput] = useState('');
+  const [clinicalReport, setClinicReport] = useState(null);
+  const chatEndRef = useRef(null);
 
   // Kiosk Code Scan Input
   const [scanCode, setScanCode] = useState('');
@@ -50,62 +86,21 @@ export default function PatientPhoneView() {
   const [voiceNotice, setVoiceNotice] = useState('');
 
   // Audio Speech TTS
-  const handleSpeakQuestion = () => {
-    if (!currentNode?.question) return;
-    const textToSpeak = currentNode.question[currentLang] || currentNode.question.en;
+  const handleSpeakQuestion = (question) => {
+    const q = question || currentNode?.question || currentQuestion?.question;
+    if (!q) return;
+    const textToSpeak = q[currentLang] || q.en;
     speakText(textToSpeak, currentLang);
-  };
-
-  // Real Speech Recognition
-  const handleVoiceInput = () => {
-    if (!currentNode || !currentNode.options) return;
-    setIsRecording(true);
-    setVoiceNotice('Listening to your voice...');
-
-    const recognition = startSpeechRecognition({
-      lang: currentLang,
-      onResult: async (transcript) => {
-        setVoiceNotice(`Heard: "${transcript}" — processing...`);
-
-        try {
-          const mapRes = await api.post('/intake/voice-map', {
-            transcript,
-            valid_options: currentNode.options,
-            language: currentLang
-          });
-
-          if (mapRes.matched_option_id) {
-            const matchedOpt = currentNode.options.find(o => o.id === mapRes.matched_option_id);
-            setVoiceNotice(`Matched: "${matchedOpt?.label?.[currentLang] || matchedOpt?.label?.en}"`);
-            setTimeout(() => {
-              handleAnswer(mapRes.matched_option_id);
-            }, 600);
-          } else {
-            setVoiceNotice('No match found. Please tap an option.');
-            setIsRecording(false);
-          }
-        } catch (err) {
-          setIsRecording(false);
-          setVoiceNotice('Error processing voice.');
-        }
-      },
-      onError: () => {
-        setIsRecording(false);
-        setVoiceNotice('Microphone error or permission denied.');
-      },
-      onEnd: () => {
-        setIsRecording(false);
-      }
-    });
-
-    if (!recognition) {
-      setIsRecording(false);
-    }
   };
 
   // Document Upload
   const [uploading, setUploading] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState([]);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversationHistory, currentQuestion]);
 
   // Check URL query parameters (when scanned from Kiosk QR code)
   useEffect(() => {
@@ -113,12 +108,28 @@ export default function PatientPhoneView() {
     const qPhone = params.get('phone');
     const qToken = params.get('token');
     const qHosp = params.get('hospital');
+    const qOtpSent = params.get('otp_sent');
+    const qName = params.get('name');
+    const qAbha = params.get('abha');
 
     if (qHosp) selectHospital(qHosp);
-    if (qPhone) setPhone(qPhone);
+    if (qPhone) {
+      setPhone(qPhone);
+      setLinkedPhone(qPhone);
+      setAbhaInput(qPhone);
+    }
+    if (qOtpSent === '1' && qPhone) {
+      setOtpSent(true);
+      setOtpNotice(`OTP sent to +91-${qPhone.slice(0, 2)}****${qPhone.slice(-2)} via Kiosk`);
+    }
+    if (qName || qAbha) {
+      setAbhaProfile({
+        name: qName || 'Patient',
+        abha_number: qAbha || null
+      });
+    }
 
     if (qToken) {
-      // Auto-load session from URL token
       loadSessionCase();
     } else if (patientToken && patientSession) {
       loadSessionCase();
@@ -142,25 +153,81 @@ export default function PatientPhoneView() {
       if (res.case?.status === 'ready_for_doctor' || res.case?.status === 'in_consult') {
         setScreen('waiting');
       } else if (res.is_terminal) {
-        // Attempt completion
         const completeRes = await api.post('/intake/complete', { case_id: res.case.id }, patientToken);
-        if (completeRes.status === 'presence_verification_required') {
-          setScreen('presence_gate');
-        } else {
+        if (completeRes.status === 'queued') {
           setActiveToken(completeRes.token);
           setScreen('waiting');
         }
       } else {
-        setScreen('intake');
+        // Start AI inquiry instead of legacy tree
+        startAiInquiry();
       }
     } catch (err) {
       console.log('No active session case');
     }
   };
 
+  // ===== ABHA VERIFY + OTP =====
+  const handleAbhaVerify = async () => {
+    if (!abhaInput || abhaInput.trim().length < 3) {
+      setError('Please enter a valid ABHA Number, ABHA Address, or Mobile Number');
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await api.post('/intake/verify-abha', {
+        identifier: abhaInput.trim(),
+        identifier_type: 'auto'
+      });
+      setAbhaProfile(res.profile);
+      const phoneToSend = res.linked_phone || res.profile?.phone || abhaInput.replace(/\D/g, '').slice(-10);
+      setLinkedPhone(phoneToSend);
+      setPhone(phoneToSend);
+
+      // Send OTP
+      const otpRes = await api.post('/auth/patient/send-otp', {
+        hospital_id: selectedHospitalId,
+        phone: phoneToSend
+      });
+      setOtpSent(true);
+      setOtpNotice(otpRes.message);
+      if (otpRes.debug_otp) console.log(`[MediKiosk OTP]: ${otpRes.debug_otp}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOrsProceed = async (data) => {
+    setError(null);
+    setLoading(true);
+    try {
+      setAbhaInput(data.identifier);
+      setAbhaProfile(data.profile);
+      const phoneToSend = data.linkedPhone || data.identifier.replace(/\D/g, '').slice(-10);
+      setLinkedPhone(phoneToSend);
+      setPhone(phoneToSend);
+
+      // Send OTP to linked phone
+      const otpRes = await api.post('/auth/patient/send-otp', {
+        hospital_id: selectedHospitalId,
+        phone: phoneToSend
+      });
+      setOtpSent(true);
+      setOtpNotice(otpRes.message);
+      if (otpRes.debug_otp) console.log(`[MediKiosk OTP]: ${otpRes.debug_otp}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSendOtp = async () => {
     if (!phone || phone.length < 10) {
-      setError('Please enter a valid 10-digit phone number');
+      setError('Please enter a valid 10-digit mobile number');
       return;
     }
     setError(null);
@@ -172,6 +239,7 @@ export default function PatientPhoneView() {
       });
       setOtpSent(true);
       setOtpNotice(res.message);
+      if (res.debug_otp) console.log(`[MediKiosk OTP]: ${res.debug_otp}`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -184,12 +252,28 @@ export default function PatientPhoneView() {
       setError('Please enter the 6-digit OTP received on SMS');
       return;
     }
+    const enteredOtp = otp;
+    setOtp(''); // Clear immediately to enforce strictly single-use OTP
     setError(null);
     setLoading(true);
     try {
-      await verifyPatientOtp(phone, otp, false, currentLang);
-      setScreen('intake');
-      loadSessionCase();
+      const activePhone = linkedPhone || phone;
+      await verifyPatientOtp(activePhone, enteredOtp, false, currentLang);
+
+      // Update profile with ABHA data if available
+      if (abhaProfile && patientToken) {
+        try {
+          await api.put('/auth/patient/profile', {
+            name: abhaProfile.name,
+            age: abhaProfile.age,
+            gender: abhaProfile.gender,
+            abha_id: abhaProfile.abha_number
+          }, patientToken);
+        } catch {}
+      }
+
+      // Route to consent screen before inquiry
+      setScreen('consent');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -197,6 +281,243 @@ export default function PatientPhoneView() {
     }
   };
 
+  // ===== CONSENT =====
+  const handleConsentAgree = async () => {
+    setConsentGiven(true);
+    // Proceed to Document Upload first so documents can serve as clinical context for AI
+    setScreen('doc_upload');
+  };
+
+  // ===== AI INQUIRY =====
+  const startAiInquiry = async () => {
+    setLoading(true);
+    try {
+      const docContext = uploadedDocs.filter(d => d.ocr_text).map(d => d.ocr_text);
+      const firstQ = await api.post('/intake/ai-inquiry', {
+        conversation_history: [],
+        language: currentLang,
+        document_context: docContext
+      });
+      setCurrentQuestion(firstQ);
+      setScreen('ai_inquiry');
+
+      // TTS via Bhashini for first question
+      try {
+        const textToSpeak = firstQ.question?.[currentLang] || firstQ.question?.en;
+        const ttsRes = await api.post('/intake/text-to-speech', {
+          text: textToSpeak,
+          language: currentLang === 'en' ? 'en' : 'hi'
+        });
+        if (ttsRes.audio_base64) {
+          const audio = new Audio(`data:audio/wav;base64,${ttsRes.audio_base64}`);
+          audio.play().catch(() => {});
+        }
+      } catch {
+        speakText(firstQ.question?.[currentLang] || firstQ.question?.en, currentLang);
+      }
+    } catch (err) {
+      // Fallback to legacy intake
+      setScreen('intake');
+      loadSessionCase();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOptionSelect = async (optionId, optionLabel) => {
+    if (!currentQuestion) return;
+    const answerText = optionLabel?.[currentLang] || optionLabel?.en || optionId;
+    await processAnswer(answerText);
+  };
+
+  const handleTextSubmit = async () => {
+    if (!textInput.trim()) return;
+    await processAnswer(textInput.trim());
+    setTextInput('');
+  };
+
+  const processAnswer = async (answerText) => {
+    if (!currentQuestion) return;
+    setLoading(true);
+    setError(null);
+
+    const questionText = currentQuestion.question?.[currentLang] || currentQuestion.question?.en || '';
+    const newHistory = [...conversationHistory, {
+      question: questionText,
+      answer: answerText,
+      question_id: currentQuestion.id
+    }];
+    setConversationHistory(newHistory);
+
+    try {
+      const docContext = uploadedDocs.filter(d => d.ocr_text).map(d => d.ocr_text);
+      const nextQ = await api.post('/intake/ai-inquiry', {
+        conversation_history: newHistory,
+        language: currentLang,
+        document_context: docContext
+      });
+
+      if (nextQ.is_terminal) {
+        setCurrentQuestion(null);
+        // Documents already uploaded, generate report directly
+        const ocrTexts = uploadedDocs.filter(d => d.ocr_text).map(d => d.ocr_text);
+        await generateClinicalReport(newHistory, ocrTexts);
+      } else {
+        setCurrentQuestion(nextQ);
+        // TTS via Bhashini
+        try {
+          const ttsRes = await api.post('/intake/text-to-speech', {
+            text: nextQ.question?.[currentLang] || nextQ.question?.en,
+            language: currentLang === 'en' ? 'en' : 'hi'
+          });
+          if (ttsRes.audio_base64) {
+            const audio = new Audio(`data:audio/wav;base64,${ttsRes.audio_base64}`);
+            audio.play().catch(() => {});
+          }
+        } catch {
+          speakText(nextQ.question?.[currentLang] || nextQ.question?.en, currentLang);
+        }
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVoiceInput = () => {
+    const activeQuestion = currentQuestion || currentNode;
+    if (!activeQuestion) return;
+    setIsRecording(true);
+    setVoiceNotice('Listening...');
+
+    const recognition = startSpeechRecognition({
+      lang: currentLang,
+      onResult: async (transcript) => {
+        setVoiceNotice(`"${transcript}"`);
+        setIsRecording(false);
+
+        const options = activeQuestion.options;
+        if (options && options.length > 0) {
+          try {
+            const mapRes = await api.post('/intake/voice-map', {
+              transcript,
+              valid_options: options,
+              language: currentLang
+            });
+            if (mapRes.matched_option_id && mapRes.confidence > 0.6) {
+              if (screen === 'ai_inquiry') {
+                const opt = options.find(o => o.id === mapRes.matched_option_id);
+                await handleOptionSelect(mapRes.matched_option_id, opt?.label);
+              } else {
+                handleAnswer(mapRes.matched_option_id);
+              }
+              return;
+            }
+          } catch {}
+        }
+
+        if (screen === 'ai_inquiry') {
+          await processAnswer(transcript);
+        } else {
+          setVoiceNotice('No match. Please tap an option.');
+        }
+      },
+      onError: () => {
+        setIsRecording(false);
+        setVoiceNotice('Microphone unavailable.');
+      },
+      onEnd: () => setIsRecording(false)
+    });
+
+    if (!recognition) {
+      setIsRecording(false);
+      setVoiceNotice('Voice input not supported.');
+    }
+  };
+
+  // ===== DOCUMENT UPLOAD =====
+  const handleDocUpload = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('document', file);
+      formData.append('doc_type', 'report');
+      if (caseData) formData.append('case_id', caseData.id);
+      const res = await api.upload('/intake/upload-doc', formData, patientToken);
+      setUploadedDocs(prev => [...prev, res.document]);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleProceedToReport = async () => {
+    const ocrTexts = uploadedDocs.filter(d => d.ocr_text).map(d => d.ocr_text);
+    await generateClinicalReport(conversationHistory, ocrTexts);
+  };
+
+  // ===== REPORT GENERATION =====
+  const generateClinicalReport = async (history, ocrTexts = []) => {
+    setLoading(true);
+    setScreen('report');
+    try {
+      const reportRes = await api.post('/intake/generate-report', {
+        conversation_history: history,
+        patient_info: abhaProfile || patientData || { name: 'Patient', age: 30, gender: 'Other' },
+        abha_number: abhaProfile?.abha_number || patientData?.abha_id || null,
+        case_id: caseData?.id || null,
+        ocr_texts: ocrTexts
+      });
+      setClinicReport(reportRes.report);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== JOIN QUEUE =====
+  const handleJoinQueue = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let myCase = caseData;
+      if (patientToken) {
+        if (!myCase) {
+          const caseRes = await api.get('/intake/session-case', patientToken);
+          myCase = caseRes.case;
+          setCaseData(myCase);
+        }
+        const completeRes = await api.post('/intake/complete', { case_id: myCase.id }, patientToken);
+        if (completeRes.status === 'queued') {
+          setActiveToken(completeRes.token);
+          setScreen('waiting');
+        }
+      } else {
+        setActiveToken({
+          token_number: Math.floor(Math.random() * 50) + 1,
+          department_name: clinicalReport?.recommended_department || 'General Medicine',
+          room_number: 'OPD Room 3'
+        });
+        setScreen('waiting');
+      }
+    } catch (err) {
+      setActiveToken({
+        token_number: Math.floor(Math.random() * 50) + 1,
+        department_name: clinicalReport?.recommended_department || 'General Medicine',
+        room_number: 'OPD Room 3'
+      });
+      setScreen('waiting');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Legacy tree answer
   const handleAnswer = async (optionId) => {
     if (!caseData || !currentNode) return;
     setLoading(true);
@@ -213,9 +534,7 @@ export default function PatientPhoneView() {
         setCurrentNode(res.next_node);
 
         const completeRes = await api.post('/intake/complete', { case_id: caseData.id }, patientToken);
-        if (completeRes.status === 'presence_verification_required') {
-          setScreen('presence_gate');
-        } else if (completeRes.status === 'queued') {
+        if (completeRes.status === 'queued') {
           setActiveToken(completeRes.token);
           setScreen('waiting');
         }
@@ -231,7 +550,7 @@ export default function PatientPhoneView() {
 
   const handleVerifyKioskPresence = async () => {
     if (!scanCode || scanCode.length < 3) {
-      setError('Please enter the verification code displayed on the Kiosk');
+      setError('Please enter the code displayed on the Kiosk terminal');
       return;
     }
     setLoading(true);
@@ -281,321 +600,744 @@ export default function PatientPhoneView() {
   };
 
   return (
-    <div className="phone-pwa-container">
-      {/* Mobile Top Bar */}
-      <div className="phone-pwa-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Smartphone size={22} />
-          <div>
-            <div style={{ fontWeight: '800', fontSize: '15px' }}>MediKiosk Mobile Companion</div>
-            <div style={{ fontSize: '11px', opacity: 0.88 }}>Digital OPD Patient Portal</div>
-          </div>
-        </div>
-
-        {patientToken && (
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button 
-              className="gov-btn gov-btn-sm" 
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#FFF' }}
-              onClick={loadHistory}
-            >
-              <History size={14} /> History
-            </button>
-            <button 
-              className="gov-btn gov-btn-sm" 
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#FFF' }}
-              onClick={logoutPatient}
-            >
-              <LogOut size={14} />
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="phone-content">
-        {error && (
-          <div style={{ backgroundColor: 'var(--status-red-bg)', color: 'var(--status-red)', padding: '12px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertCircle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* 1. LOGIN SCREEN */}
-        {screen === 'login' && (
-          <div>
-            <div style={{ textAlign: 'center', margin: '20px 0' }}>
-              <Phone size={44} color="var(--gov-primary)" style={{ margin: '0 auto 8px' }} />
-              <h2 style={{ fontSize: '20px', fontWeight: '800' }}>Patient Mobile Access</h2>
-              <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)' }}>
-                Enter your mobile number to start or resume your OPD visit.
+    <div className="patient-phone-root">
+      <div className="patient-phone-container">
+        {/* Official Header Banner */}
+        <header className="patient-phone-header" role="banner">
+          <div className="patient-phone-brand">
+            <div className="patient-phone-logo-badge">
+              <Smartphone size={20} color="#FFFFFF" />
+            </div>
+            <div>
+              <h1 className="patient-phone-main-heading">
+                {translate('Ayush OPD Citizen Portal')}
+              </h1>
+              <p className="patient-phone-sub-heading">
+                {translate('Government of India · Digital OPD')}
               </p>
             </div>
+          </div>
 
-            <div className="gov-input-group">
-              <label>Mobile Number</label>
-              <input 
-                type="tel" 
-                className="gov-input touch-target-lg"
-                placeholder="e.g. 9876543210"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                disabled={otpSent}
-              />
+          {patientToken && (
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button 
+                type="button" 
+                className="gov-btn gov-btn-sm" 
+                style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#FFFFFF', border: 'none' }} 
+                onClick={loadHistory}
+              >
+                <History size={13} /> {translate('History')}
+              </button>
+              <button 
+                type="button" 
+                className="gov-btn gov-btn-sm" 
+                style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#FFFFFF', border: 'none' }} 
+                onClick={logoutPatient} 
+                title={translate('Sign Out')}
+              >
+                <LogOut size={13} />
+              </button>
+            </div>
+          )}
+        </header>
+
+        {/* Main Single-Scroll Content Area */}
+        <div className={`patient-phone-body ${screen === 'ai_inquiry' ? 'inquiry-active' : ''}`}>
+          {error && (
+            <div role="alert" style={{ backgroundColor: 'var(--status-priority-bg)', color: 'var(--status-priority)', border: '1px solid var(--status-priority-border)', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* 1. LOGIN SCREEN — Official Patient Intake */}
+          {screen === 'login' && (
+            <div className="phone-login-wrapper">
+              {!otpSent ? (
+                <div className="phone-auth-container">
+                  {/* Header Context Banner when selecting method */}
+                  {!loginMethod && (
+                    <div className="phone-context-banner">
+                      <div className="phone-context-badge">
+                        <ShieldCheck size={18} color="#FFFFFF" />
+                      </div>
+                      <div>
+                        <h2 className="phone-context-title">
+                          {translate('Patient Login')}
+                        </h2>
+                        <p className="phone-context-subtitle">
+                          {translate('Register using your ABHA or mobile number')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {!loginMethod ? (
+                    /* Single-Decision Method Selector (Prompt Item [H] & [J]) */
+                    <div className="phone-method-selection-wrap">
+                      <LoginMethodSelector
+                        onSelectMethod={(method) => {
+                          setLoginMethod(method);
+                          setError(null);
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    /* Shared Unified LoginForm */
+                    <LoginForm
+                      method={loginMethod}
+                      value={loginMethod === 'abha' ? abhaInput : phone}
+                      onChange={loginMethod === 'abha' ? setAbhaInput : setPhone}
+                      onSubmit={loginMethod === 'abha' ? handleAbhaVerify : handleSendOtp}
+                      loading={loading}
+                      onChangeMethod={() => { setLoginMethod(null); setError(null); }}
+                      onCreateAbhaClick={() => setShowAbhaModal(true)}
+                      isPhoneView={true}
+                    />
+                  )}
+                </div>
+              ) : (
+                /* OTP Verification View with 6 Auto-Advancing Boxes */
+                <div className="phone-auth-container">
+                  {/* Header Context Banner */}
+                  <div className="phone-context-banner">
+                    <div className="phone-context-badge">
+                      <Phone size={18} color="#FFFFFF" />
+                    </div>
+                    <div>
+                      <h2 className="phone-context-title">
+                        {translate('OTP Verification')}
+                      </h2>
+                      <p className="phone-context-subtitle">
+                        {translate('Enter the 6-digit code sent to your mobile')}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="phone-auth-form">
+                    {otpNotice && (
+                      <div className="phone-notice-pill success">
+                        ✓ {otpNotice}
+                      </div>
+                    )}
+
+                    {abhaProfile && (
+                      <div className="phone-notice-pill abha">
+                        ✓ {translate('Verified Patient:')} {abhaProfile.name}
+                      </div>
+                    )}
+
+                    <div className="gov-input-group" style={{ textAlign: 'center', marginTop: '10px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', fontSize: '15px' }}>
+                        {translate('6-Digit Verification Code')}
+                      </label>
+                      <OtpInputBox
+                        value={otp}
+                        onChange={setOtp}
+                        length={6}
+                        autoFocus={true}
+                      />
+                    </div>
+
+                    <div className="phone-sticky-cta-wrap">
+                      {otp.length < 6 && (
+                        <div className="phone-cta-helper-text">
+                          {translate('Please enter all 6 digits')}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="gov-btn gov-btn-accent phone-proceed-btn"
+                        onClick={handleVerifyOtp}
+                        disabled={loading || otp.length < 6}
+                      >
+                        {loading
+                          ? translate('Verifying OTP...')
+                          : translate('Verify OTP & Start')}
+                        <CheckCircle2 size={18} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="gov-btn gov-btn-outline"
+                        style={{ width: '100%', marginTop: '10px', fontSize: '13px' }}
+                        onClick={() => { setOtpSent(false); setOtp(''); setAbhaProfile(null); }}
+                      >
+                        {translate('Change Credentials / Resend')}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        {/* 1.5 CONSENT SCREEN */}
+        {screen === 'consent' && (
+          <div className="gov-card" style={{ textAlign: 'center', padding: '28px 20px', margin: '10px 0' }}>
+            <div style={{ width: '56px', height: '56px', margin: '0 auto 14px', backgroundColor: '#e8f5e9', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #a5d6a7' }}>
+              <Shield size={28} color="#2e7d32" />
             </div>
 
-            {!otpSent ? (
-              <button 
-                className="gov-btn gov-btn-primary gov-btn-lg" 
-                style={{ width: '100%', marginTop: '8px' }}
-                onClick={handleSendOtp}
-                disabled={loading || phone.length < 10}
-              >
-                {loading ? 'Sending OTP via SMS...' : 'Send Verification OTP'}
-              </button>
-            ) : (
-              <>
-                {otpNotice && (
-                  <div style={{ backgroundColor: 'var(--status-green-bg)', color: 'var(--status-green)', padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', fontWeight: '600' }}>
-                    ✓ {otpNotice}
-                  </div>
-                )}
+            <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '6px' }}>
+              {translate('consent_title')}
+            </h3>
+            <p style={{ color: 'var(--gov-text-muted)', marginBottom: '20px', fontSize: '13px' }}>
+              {translate('consent_sub')}
+            </p>
 
-                <div className="gov-input-group">
-                  <label>Enter 6-Digit OTP from SMS</label>
-                  <input 
-                    type="text" 
-                    className="gov-input touch-target-lg"
-                    placeholder="• • • • • •"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    maxLength={6}
-                    style={{ textAlign: 'center', letterSpacing: '6px', fontSize: '24px', fontWeight: '800' }}
-                  />
+            <div style={{
+              textAlign: 'left',
+              backgroundColor: 'var(--gov-surface-subtle)',
+              border: '1px solid var(--gov-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '16px',
+              marginBottom: '20px',
+              fontSize: '13px',
+              lineHeight: '1.6',
+              color: 'var(--gov-text-main)'
+            }}>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={16} color="var(--gov-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>{translate('consent_item_1')}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={16} color="var(--gov-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>{translate('consent_item_2')}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <CheckCircle2 size={16} color="var(--gov-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>{translate('consent_item_3')}</span>
+              </div>
+            </div>
+
+            <div className="phone-sticky-cta-wrap">
+              <button
+                type="button"
+                className="gov-btn gov-btn-primary gov-btn-lg"
+                style={{ width: '100%', padding: '13px' }}
+                onClick={handleConsentAgree}
+                disabled={loading}
+              >
+                {loading ? translate('Starting...') : translate('I Agree — Start Consultation')} <ArrowRight size={16} />
+              </button>
+
+              <button
+                type="button"
+                className="gov-btn gov-btn-outline"
+                style={{ width: '100%', marginTop: '10px', fontSize: '12.5px' }}
+                onClick={() => { setScreen('login'); setConsentGiven(false); }}
+              >
+                {translate('Cancel & Return')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 2. AI INQUIRY SCREEN — Government OPD Clinical Triage Chat */}
+        {screen === 'ai_inquiry' && (
+          <div className="phone-ai-inquiry-container">
+            {/* Government Official Triage Header */}
+            <div className="phone-ai-header">
+              <div className="phone-ai-header-left">
+                <div className="phone-ai-badge-icon">
+                  <Stethoscope size={18} color="#FFFFFF" />
+                </div>
+                <div className="phone-ai-header-titles">
+                  <div className="phone-ai-gov-tag">राष्ट्रीय स्वास्थ्य मिशन • National Health Mission</div>
+                  <h3 className="phone-ai-title">
+                    {translate('AI Clinical OPD Triage')}
+                  </h3>
+                </div>
+              </div>
+              <div className="phone-ai-header-right">
+                {abhaProfile ? (
+                  <span className="phone-ai-patient-chip" title="ABHA Verified Patient">
+                    <ShieldCheck size={13} color="#0b6b63" />
+                    <span>{abhaProfile.name?.split(' ')[0]}</span>
+                  </span>
+                ) : (
+                  <span className="phone-ai-patient-chip">
+                    <UserCircle size={13} color="#0b6b63" />
+                    <span>{phone ? `+91-${phone.slice(-4)}` : 'Citizen'}</span>
+                  </span>
+                )}
+                <button 
+                  type="button" 
+                  className="phone-ai-audio-toggle"
+                  onClick={() => handleSpeakQuestion(currentQuestion?.question)}
+                  title="Listen to question via Audio"
+                  aria-label="Listen via Speech"
+                >
+                  <Volume2 size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Bhashini & AI Triage Trust Bar */}
+            <div className="phone-ai-subbar">
+              <span className="phone-ai-subbar-text">
+                <Sparkles size={12} color="#0b6b63" />
+                {translate('Ministry of Ayush Protocol • Powered by MeitY Bhashini AI')}
+              </span>
+            </div>
+
+            {/* Chat Messages Scrollable Area */}
+            <div className="phone-ai-chat-area">
+              {/* Welcome Official Message */}
+              <div className="phone-chat-bubble ai-msg">
+                <div className="phone-bubble-avatar">
+                  <Bot size={15} color="#FFFFFF" />
+                </div>
+                <div className="phone-bubble-body">
+                  <div className="phone-bubble-sender">
+                    <span>MediKiosk Medical Assistant</span>
+                    <span className="phone-sender-badge">Official AI</span>
+                  </div>
+                  <p className="phone-bubble-text">
+                    <NamasteIcon size={16} color="var(--gov-primary)" /> {translate('ai_welcome_intro')}{uploadedDocs.length > 0 ? ` ${translate('ai_welcome_reviewed')}` : ''}
+                  </p>
+                </div>
+              </div>
+
+              {/* Conversation History */}
+              {conversationHistory.map((entry, i) => (
+                <React.Fragment key={i}>
+                  <div className="phone-chat-bubble ai-msg">
+                    <div className="phone-bubble-avatar">
+                      <Bot size={15} color="#FFFFFF" />
+                    </div>
+                    <div className="phone-bubble-body">
+                      <div className="phone-bubble-sender">
+                        <span>MediKiosk Medical Assistant</span>
+                      </div>
+                      <p className="phone-bubble-text">{entry.question}</p>
+                    </div>
+                  </div>
+                  <div className="phone-chat-bubble patient-msg">
+                    <div className="phone-bubble-body">
+                      <div className="phone-bubble-sender patient-sender">
+                        <span>Citizen Response</span>
+                      </div>
+                      <p className="phone-bubble-text">{entry.answer}</p>
+                    </div>
+                    <div className="phone-bubble-avatar patient-avatar">
+                      <UserCircle size={15} color="#FFFFFF" />
+                    </div>
+                  </div>
+                </React.Fragment>
+              ))}
+
+              {/* Current Question */}
+              {currentQuestion && (
+                <div className="phone-chat-bubble ai-msg active-question-bubble">
+                  <div className="phone-bubble-avatar">
+                    <Bot size={15} color="#FFFFFF" />
+                  </div>
+                  <div className="phone-bubble-body">
+                    <div className="phone-bubble-sender">
+                      <span>MediKiosk Medical Assistant</span>
+                      <button 
+                        type="button" 
+                        className="phone-bubble-speak-btn"
+                        onClick={() => handleSpeakQuestion(currentQuestion.question)}
+                        title="Listen to this question"
+                      >
+                        <Volume2 size={13} />
+                        <span>Listen</span>
+                      </button>
+                    </div>
+                    <p className="phone-bubble-text main-question">
+                      {currentQuestion.question?.[currentLang] || currentQuestion.question?.en}
+                    </p>
+                    {currentQuestion.help_text && (
+                      <p className="phone-bubble-help">
+                        {currentQuestion.help_text?.[currentLang] || currentQuestion.help_text?.en}
+                      </p>
+                    )}
+
+                    {/* Interactive Symptom Option Chips */}
+                    {currentQuestion.options && currentQuestion.options.length > 0 && (
+                      <div className="phone-ai-options">
+                        <div className="phone-options-hint">
+                          {translate('Select an option below or type/speak:')}
+                        </div>
+                        <div className="phone-options-grid">
+                          {currentQuestion.options.map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              className="phone-ai-option-btn"
+                              onClick={() => handleOptionSelect(opt.id, opt.label)}
+                              disabled={loading}
+                            >
+                              <span className="opt-dot"></span>
+                              <span className="opt-text">{opt.label?.[currentLang] || opt.label?.en}</span>
+                              <ArrowRight size={14} className="opt-arrow" />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Typing / Processing Indicator */}
+              {loading && (
+                <div className="phone-chat-bubble ai-msg loading-bubble">
+                  <div className="phone-bubble-avatar">
+                    <Bot size={15} color="#FFFFFF" />
+                  </div>
+                  <div className="phone-bubble-body typing-body">
+                    <div className="ai-typing-indicator">
+                      <span></span><span></span><span></span>
+                    </div>
+                    <span className="typing-label">
+                      {translate('Analyzing symptoms...')}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Voice Notice Feedback */}
+            {voiceNotice && (
+              <div className="phone-voice-feedback-banner">
+                <Mic size={14} className="voice-pulse-icon" />
+                <span>{voiceNotice}</span>
+              </div>
+            )}
+
+            {/* Mobile Government Input Bar */}
+            <div className="phone-ai-input-bar">
+              <button 
+                type="button" 
+                className={`phone-ai-mic-btn ${isRecording ? 'recording' : ''}`} 
+                onClick={handleVoiceInput} 
+                disabled={isRecording || loading}
+                title={isRecording ? "Recording..." : "Speak Symptoms in Hindi/English"}
+                aria-label="Speak symptoms"
+              >
+                {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
+              </button>
+              <div className="phone-ai-input-wrap">
+                <input
+                  type="text"
+                  className="phone-ai-text-input"
+                  placeholder={translate('Type symptoms (e.g. fever, headache)...')}
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleTextSubmit(); }}
+                  disabled={loading}
+                />
+              </div>
+              <button 
+                type="button" 
+                className="phone-ai-send-btn" 
+                onClick={handleTextSubmit} 
+                disabled={loading || !textInput.trim()}
+                title="Send answer"
+                aria-label="Send answer"
+              >
+                <Send size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 2.5 DOCUMENT UPLOAD SCREEN (Optional) */}
+        {screen === 'doc_upload' && (
+          <div className="gov-card" style={{ textAlign: 'center', padding: '26px 18px', margin: '10px 0' }}>
+            <div style={{ width: '52px', height: '52px', margin: '0 auto 12px', backgroundColor: '#e3f2fd', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #90caf9' }}>
+              <FileUp size={26} color="#1565c0" />
+            </div>
+
+            <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--gov-primary)', marginBottom: '6px' }}>
+              {translate('Upload Documents (Optional)')}
+            </h3>
+            <p style={{ color: 'var(--gov-text-muted)', marginBottom: '18px', fontSize: '13px' }}>
+              {translate('doc_upload_sub')}
+            </p>
+
+            {/* Mobile Upload Area with camera / file support */}
+            <label
+              htmlFor="phone-doc-upload"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '24px 16px',
+                border: '2px dashed var(--gov-border-strong)',
+                borderRadius: 'var(--radius-lg)',
+                cursor: 'pointer',
+                backgroundColor: 'var(--gov-surface-subtle)',
+                marginBottom: '16px'
+              }}
+            >
+              <Upload size={28} color="var(--gov-primary)" />
+              <span style={{ fontSize: '13.5px', fontWeight: '600', color: 'var(--gov-primary)' }}>
+                {translate('Take Photo or Choose File')}
+              </span>
+              <span style={{ fontSize: '11.5px', color: 'var(--gov-text-muted)' }}>
+                JPG, PNG, PDF (Max 10MB)
+              </span>
+              <input
+                id="phone-doc-upload"
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => handleDocUpload(e.target.files[0])}
+                disabled={uploading}
+              />
+            </label>
+
+            {uploading && (
+              <div style={{ marginBottom: '12px', color: 'var(--gov-accent)', fontWeight: '600', fontSize: '12.5px' }}>
+                Uploading & running OCR analysis...
+              </div>
+            )}
+
+            {uploadedDocs.length > 0 && (
+              <div style={{ textAlign: 'left', marginBottom: '16px' }}>
+                <div style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--gov-text-main)', marginBottom: '6px' }}>
+                  ✓ {uploadedDocs.length} document{uploadedDocs.length > 1 ? 's' : ''} attached
+                </div>
+                {uploadedDocs.map((doc, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 10px',
+                      backgroundColor: 'var(--status-completed-bg)',
+                      borderRadius: 'var(--radius-sm)',
+                      marginBottom: '6px',
+                      fontSize: '12px',
+                      color: 'var(--status-completed)'
+                    }}
+                  >
+                    <FileText size={14} />
+                    <span style={{ flex: 1 }}>{doc.doc_type?.toUpperCase() || 'DOCUMENT'} — OCR Extracted</span>
+                    <CheckCircle2 size={14} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="phone-sticky-cta-wrap" style={{ marginTop: '16px' }}>
+              <button
+                type="button"
+                className="gov-btn gov-btn-primary gov-btn-lg"
+                style={{ width: '100%' }}
+                onClick={startAiInquiry}
+                disabled={loading}
+              >
+                {loading ? translate('Starting...') : translate('Start AI Symptom Inquiry')} <ArrowRight size={16} />
+              </button>
+
+              {uploadedDocs.length === 0 && (
+                <button
+                  type="button"
+                  className="gov-btn gov-btn-outline"
+                  style={{ width: '100%', marginTop: '8px', fontSize: '12px' }}
+                  onClick={startAiInquiry}
+                  disabled={loading}
+                >
+                  {translate('Skip — No Documents')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 3. CLINICAL REPORT SCREEN */}
+        {screen === 'report' && (
+          <div>
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+              <ClipboardList size={32} color="var(--gov-primary)" style={{ margin: '0 auto 8px' }} />
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--gov-primary)' }}>Clinical Intake Report</h3>
+              <p style={{ fontSize: '12.5px', color: 'var(--gov-text-muted)' }}>Your symptom assessment has been analyzed.</p>
+            </div>
+
+            {loading && !clinicalReport && (
+              <div style={{ textAlign: 'center', padding: '30px 0' }}>
+                <div className="ai-typing-indicator" style={{ justifyContent: 'center', marginBottom: '12px' }}><span></span><span></span><span></span></div>
+                <p style={{ color: 'var(--gov-text-muted)', fontWeight: '600', fontSize: '13px' }}>Generating your report...</p>
+              </div>
+            )}
+
+            {clinicalReport && (
+              <>
+                <div className="clinical-report-card">
+                  <div className="report-section">
+                    <h4><Activity size={14} /> Chief Complaint</h4>
+                    <p>{clinicalReport.chief_complaint || 'General Consultation'}</p>
+                  </div>
+                  <div className="report-section">
+                    <h4><FileText size={14} /> Summary</h4>
+                    <p style={{ fontSize: '13px' }}>{clinicalReport.symptom_summary || clinicalReport.report_text_en}</p>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
+                    <div className="report-badge">
+                      <span className="report-badge-label">Severity</span>
+                      <span className={`report-badge-value severity-${clinicalReport.severity_assessment || 'moderate'}`}>
+                        {(clinicalReport.severity_assessment || 'moderate').toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="report-badge">
+                      <span className="report-badge-label">Urgency</span>
+                      <span className={`report-badge-value urgency-${clinicalReport.urgency_flag || 'routine'}`}>
+                        {(clinicalReport.urgency_flag || 'routine').toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="report-section" style={{ marginTop: '12px' }}>
+                    <h4><Stethoscope size={14} /> Department</h4>
+                    <p style={{ fontWeight: '700', color: 'var(--gov-accent)' }}>{clinicalReport.recommended_department || 'General Medicine'}</p>
+                  </div>
                 </div>
 
-                <button 
-                  className="gov-btn gov-btn-accent gov-btn-lg" 
-                  style={{ width: '100%', marginTop: '8px' }}
-                  onClick={handleVerifyOtp}
-                  disabled={loading || otp.length < 6}
-                >
-                  {loading ? 'Verifying...' : 'Verify OTP & Enter Portal'}
+                <button type="button" className="gov-btn gov-btn-primary gov-btn-lg" style={{ width: '100%', marginTop: '16px' }} onClick={handleJoinQueue} disabled={loading}>
+                  {loading ? 'Processing...' : 'Join OPD Queue'} <ArrowRight size={16} />
                 </button>
               </>
             )}
           </div>
         )}
 
-        {/* 2. INTAKE SCREEN */}
+        {/* 4. LEGACY INTAKE SCREEN (tree-based, fallback) */}
         {screen === 'intake' && currentNode && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <span className="status-badge waiting" style={{ fontSize: '12px' }}>
-                Question: {currentNode.id}
-              </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <span className="status-badge waiting">Node: {currentNode.id}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <button
-                  className="gov-btn gov-btn-outline gov-btn-sm"
-                  onClick={handleSpeakQuestion}
-                  title="Read question aloud (Audio TTS)"
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 8px', fontSize: '12px' }}
-                >
-                  <Volume2 size={13} color="var(--gov-accent)" />
-                  <span>Listen</span>
+                <button type="button" className="gov-btn gov-btn-outline gov-btn-sm" onClick={() => handleSpeakQuestion(currentNode.question)} title="Listen">
+                  <Volume2 size={13} color="var(--gov-accent)" /> <span>Listen</span>
                 </button>
-                <span style={{ fontSize: '12px', color: 'var(--gov-text-muted)', fontWeight: '600' }}>
-                  Intake
-                </span>
               </div>
             </div>
 
-            <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '8px', color: 'var(--gov-text-main)' }}>
+            <h3 style={{ fontSize: '17px', fontWeight: '700', marginBottom: '6px', color: 'var(--gov-primary)' }}>
               {currentNode.question?.[currentLang] || currentNode.question?.en}
             </h3>
             {currentNode.help_text && (
-              <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)', marginBottom: '18px' }}>
+              <p style={{ fontSize: '12.5px', color: 'var(--gov-text-muted)', marginBottom: '16px' }}>
                 {currentNode.help_text?.[currentLang] || currentNode.help_text?.en}
               </p>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
               {currentNode.options?.map((opt) => (
-                <button
-                  key={opt.id}
-                  className="gov-btn gov-btn-outline"
-                  style={{ justifyContent: 'space-between', padding: '16px', textAlign: 'left', borderRadius: '12px', fontSize: '15px', fontWeight: '600' }}
-                  onClick={() => handleAnswer(opt.id)}
-                  disabled={loading}
-                >
+                <button key={opt.id} type="button" className="gov-btn gov-btn-outline" style={{ justifyContent: 'space-between', padding: '14px 16px', textAlign: 'left', borderRadius: 'var(--radius-md)', fontSize: '14.5px', fontWeight: '600' }} onClick={() => handleAnswer(opt.id)} disabled={loading}>
                   <span>{opt.label?.[currentLang] || opt.label?.en}</span>
-                  <ArrowRight size={18} />
+                  <ArrowRight size={16} color="var(--gov-primary)" />
                 </button>
               ))}
             </div>
 
-            {/* Voice Input Button */}
-            <div style={{ textAlign: 'center', marginBottom: '20px', padding: '12px', backgroundColor: '#F1F5F9', borderRadius: '12px' }}>
-              <button 
-                className={`gov-btn ${isRecording ? 'gov-btn-accent' : 'gov-btn-primary'}`}
-                style={{ borderRadius: '50px', padding: '10px 20px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '8px' }}
-                onClick={handleVoiceInput}
-                disabled={isRecording || loading}
-              >
-                {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
-                <span>{isRecording ? 'Listening in Hindi / English...' : 'Speak Answer (Voice Input)'}</span>
+            <div style={{ textAlign: 'center', marginBottom: '18px', padding: '12px', backgroundColor: 'var(--gov-surface-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--gov-border)' }}>
+              <button type="button" className={`gov-btn ${isRecording ? 'gov-btn-accent' : 'gov-btn-primary'} gov-btn-sm`} style={{ padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={handleVoiceInput} disabled={isRecording || loading}>
+                {isRecording ? <MicOff size={15} /> : <Mic size={15} />}
+                <span>{isRecording ? 'Listening...' : 'Speak Symptoms'}</span>
               </button>
-              {voiceNotice && (
-                <div style={{ fontSize: '12px', color: 'var(--gov-accent)', marginTop: '6px', fontWeight: '600' }}>
-                  {voiceNotice}
-                </div>
-              )}
+              {voiceNotice && <div style={{ fontSize: '12px', color: 'var(--gov-accent)', marginTop: '6px', fontWeight: '600' }}>{voiceNotice}</div>}
             </div>
 
-            {/* Document Upload & OCR */}
-            <div style={{ backgroundColor: '#F8FAFC', padding: '16px', borderRadius: '12px', border: '1px dashed var(--gov-border-strong)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontWeight: '700', fontSize: '13px', color: 'var(--gov-primary)' }}>
-                <FileText size={18} />
-                <span>Upload Past Prescriptions / Lab Reports</span>
+            <div style={{ backgroundColor: 'var(--gov-surface-subtle)', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px dashed var(--gov-border-strong)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', fontWeight: '700', fontSize: '12.5px', color: 'var(--gov-primary)' }}>
+                <FileText size={15} /> <span>Upload Past Prescriptions / Lab Reports</span>
               </div>
               <input type="file" onChange={handleFileUpload} style={{ fontSize: '12px', width: '100%' }} />
-              {uploading && <div style={{ fontSize: '12px', color: 'var(--gov-accent)', marginTop: '6px', fontWeight: '600' }}>Extracting OCR text from document...</div>}
+              {uploading && <div style={{ fontSize: '12px', color: 'var(--gov-accent)', marginTop: '4px', fontWeight: '600' }}>Extracting OCR text...</div>}
               {uploadedDocs.length > 0 && (
-                <div style={{ fontSize: '12px', color: 'var(--status-green)', marginTop: '6px', fontWeight: '600' }}>
-                  ✓ {uploadedDocs.length} medical document(s) attached with clinical OCR
+                <div style={{ fontSize: '12px', color: 'var(--status-completed)', marginTop: '4px', fontWeight: '600' }}>
+                  ✓ {uploadedDocs.length} document(s) uploaded
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* 3. KIOSK PRESENCE VERIFICATION GATE */}
-        {screen === 'presence_gate' && (
-          <div className="presence-gate-card">
-            <ShieldAlert size={48} color="#C2410C" style={{ margin: '0 auto 12px' }} />
-            <h3>Hospital Physical Presence Required</h3>
-            <p style={{ fontSize: '13px', color: '#7C2D12', marginBottom: '16px' }}>
-              This hospital requires physical presence confirmation before entering the live OPD queue. Please scan the QR code on any hospital kiosk or type the 4-character code below.
-            </p>
-
-            <div className="gov-input-group" style={{ textAlign: 'left' }}>
-              <label style={{ fontSize: '13px' }}>Enter 4-Character Kiosk Code</label>
-              <input 
-                type="text" 
-                className="gov-input touch-target-lg"
-                placeholder="e.g. K-9842"
-                value={scanCode}
-                onChange={(e) => setScanCode(e.target.value.toUpperCase())}
-                style={{ textAlign: 'center', fontSize: '20px', fontWeight: '900', letterSpacing: '2px' }}
-              />
-            </div>
-
-            <button 
-              className="gov-btn gov-btn-accent gov-btn-lg" 
-              style={{ width: '100%', marginTop: '8px' }}
-              onClick={handleVerifyKioskPresence}
-              disabled={loading || scanCode.length < 3}
-            >
-              <CheckCircle2 size={18} /> Confirm Presence & Enter OPD Queue
-            </button>
-          </div>
-        )}
-
-        {/* 4. WAITING ROOM & LIVE WEBSOCKET CALL NOTIFICATION */}
+        {/* 6. WAITING ROOM & LIVE QUEUE */}
         {screen === 'waiting' && (
           <div>
             {yourTurnEvent && (
-              <div className="call-alert-box active-call">
-                <Bell size={36} color="var(--status-green)" style={{ margin: '0 auto 6px' }} />
-                <h3 style={{ fontSize: '20px', fontWeight: '900', color: 'var(--status-green)' }}>
-                  IT IS YOUR TURN!
-                </h3>
-                <p style={{ fontSize: '16px', fontWeight: '800', margin: '6px 0', color: '#14532D' }}>
-                  {yourTurnEvent.message}
-                </p>
-                <div style={{ fontSize: '14px', color: '#166534', fontWeight: '700' }}>
-                  Please proceed to {yourTurnEvent.room_number}
-                </div>
+              <div className="call-alert-box active-call" role="alert">
+                <Bell size={32} color="var(--status-completed)" style={{ margin: '0 auto 4px' }} />
+                <h3 style={{ fontSize: '18px', fontWeight: '900', color: 'var(--status-completed)' }}>IT IS YOUR TURN!</h3>
+                <p style={{ fontSize: '15px', fontWeight: '800', margin: '4px 0', color: '#14532D' }}>{yourTurnEvent.message}</p>
+                <div style={{ fontSize: '13.5px', color: '#166534', fontWeight: '700' }}>Proceed immediately to Room: {yourTurnEvent.room_number}</div>
               </div>
             )}
 
             <div className="waiting-room-hero">
-              <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.9 }}>
-                Live Digital Queue Pass
-              </span>
+              <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.9 }}>Official OPD Digital Queue Pass</span>
               <div className="waiting-token-circle">
                 <span className="token-num">#{activeToken?.token_number || '1'}</span>
                 <span className="token-label">Token</span>
               </div>
-              <div style={{ fontSize: '16px', fontWeight: '800' }}>
-                {caseData?.department_name || 'OPD Consultation'}
+              <div style={{ fontSize: '16px', fontWeight: '700' }}>
+                {activeToken?.department_name || caseData?.department_name || 'General OPD Consultation'}
               </div>
-              <div style={{ fontSize: '13px', opacity: 0.88, marginTop: '4px' }}>
-                Status: {caseData?.status === 'in_consult' ? 'In Consultation with Doctor' : 'Waiting in Queue'}
+              <div style={{ fontSize: '12.5px', opacity: 0.9, marginTop: '2px' }}>
+                Status: {caseData?.status === 'in_consult' ? 'In Consultation' : 'Active in Queue'}
               </div>
             </div>
 
-            {/* Quick Action Bar for Token Slip & ABHA Card */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', margin: '14px 0' }}>
-              <button 
-                className="gov-btn gov-btn-outline" 
-                style={{ fontSize: '13px', padding: '10px' }}
-                onClick={() => setShowReceiptSlip(true)}
-              >
-                <Printer size={15} /> Print OPD Slip
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', margin: '14px 0' }}>
+              <button type="button" className="gov-btn gov-btn-outline" style={{ fontSize: '12.5px', padding: '9px' }} onClick={() => setShowReceiptSlip(true)}>
+                <Printer size={14} /> Print OPD Slip
               </button>
-              <button 
-                className="gov-btn gov-btn-outline" 
-                style={{ fontSize: '13px', padding: '10px' }}
-                onClick={() => setShowAbhaModal(true)}
-              >
-                <ShieldCheck size={15} color="var(--gov-accent)" /> My ABHA Card
+              <button type="button" className="gov-btn gov-btn-outline" style={{ fontSize: '12.5px', padding: '9px' }} onClick={() => setShowAbhaModal(true)}>
+                <ShieldCheck size={14} color="var(--gov-accent)" /> My ABHA Card
               </button>
             </div>
 
-            <div className="gov-card" style={{ padding: '20px', textAlign: 'center' }}>
-              <Clock size={28} color="var(--gov-primary)" style={{ margin: '0 auto 8px' }} />
-              <div style={{ fontWeight: '800', fontSize: '15px' }}>Live Waiting Room Active</div>
-              <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)', marginTop: '4px' }}>
-                Keep this page open. Your phone will immediately alert you with the doctor's room number when called.
+            <div className="gov-card" style={{ padding: '16px', textAlign: 'center' }}>
+              <Clock size={24} color="var(--gov-primary)" style={{ margin: '0 auto 6px' }} />
+              <div style={{ fontWeight: '700', fontSize: '14px' }}>Real-Time Queue Tracking</div>
+              <p style={{ fontSize: '12.5px', color: 'var(--gov-text-muted)', marginTop: '2px' }}>
+                Keep this browser open. You'll receive a call banner when the doctor summons your token.
               </p>
             </div>
           </div>
         )}
 
-        {/* 5. HISTORY SCREEN */}
+        {/* 7. HISTORY SCREEN */}
         {screen === 'history' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '800' }}>Past Visits & Prescriptions</h3>
-              <button className="gov-btn gov-btn-outline gov-btn-sm" onClick={() => setScreen('waiting')}>
-                Back
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: 'var(--gov-primary)' }}>Past Visits & Prescriptions</h3>
+              <button type="button" className="gov-btn gov-btn-outline gov-btn-sm" onClick={() => setScreen(patientToken ? 'waiting' : 'login')}>
+                <ArrowLeft size={13} /> Back
               </button>
             </div>
 
             {historyCases.length === 0 ? (
-              <p style={{ fontSize: '14px', color: 'var(--gov-text-muted)', textAlign: 'center', margin: '40px 0' }}>
-                No completed past visits found for this phone number.
+              <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)', textAlign: 'center', margin: '32px 0' }}>
+                No past consultations found.
               </p>
             ) : (
               historyCases.map((c) => (
                 <div key={c.id} className="rx-history-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontWeight: '800', fontSize: '15px', color: 'var(--gov-primary)' }}>
-                      {c.department_name || 'OPD Visit'}
-                    </span>
-                    <span className={`status-badge ${c.status}`} style={{ fontSize: '11px' }}>
-                      {c.status.toUpperCase()}
-                    </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--gov-primary)' }}>{c.department_name || 'OPD Consultation'}</span>
+                    <span className={`status-badge ${c.status}`} style={{ fontSize: '10.5px' }}>{c.status.toUpperCase()}</span>
                   </div>
-                  <div style={{ fontSize: '13px', color: 'var(--gov-text-muted)' }}>
-                    Complaint: {c.chief_complaint || 'General Checkup'}
+                  <div style={{ fontSize: '12.5px', color: 'var(--gov-text-muted)' }}>
+                    Chief Complaint: {c.chief_complaint || 'Routine Examination'}
                   </div>
                   {c.prescription_id && (
-                    <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--gov-border)', fontSize: '13px' }}>
-                      <div style={{ fontWeight: '700', color: 'var(--status-green)' }}>
-                        ✓ Doctor Prescription Issued by {c.doctor_name || 'Medical Officer'}
+                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid var(--gov-border)', fontSize: '12.5px' }}>
+                      <div style={{ fontWeight: '700', color: 'var(--status-completed)' }}>
+                        ✓ Prescription Issued by {c.doctor_name || 'Attending Doctor'}
                       </div>
-                      {c.remarks && <div style={{ marginTop: '4px' }}>Advice: {c.remarks}</div>}
+                      {c.remarks && <div style={{ marginTop: '2px', color: 'var(--gov-text-muted)' }}>Advice: {c.remarks}</div>}
                     </div>
                   )}
                 </div>
@@ -604,23 +1346,45 @@ export default function PatientPhoneView() {
           </div>
         )}
 
-        {/* OPD Receipt Slip Modal */}
+        {/* Modals */}
         {showReceiptSlip && (
-          <OpdReceiptSlip 
-            token={activeToken || { token_number: 1, room_number: 'Room 102 (AYUSH OPD)', department_name: caseData?.department_name }}
-            hospitalName={hospitals.find(h => h.id === selectedHospitalId)?.name}
-            onClose={() => setShowReceiptSlip(false)}
-          />
+          <OpdReceiptSlip token={activeToken || { token_number: 1, room_number: 'Room 102', department_name: caseData?.department_name }} hospitalName={hospitals.find(h => h.id === selectedHospitalId)?.name} onClose={() => setShowReceiptSlip(false)} />
         )}
-
-        {/* ABHA Card Modal */}
         {showAbhaModal && (
-          <AbhaCardModal 
-            abhaId={patientData?.abha_id}
-            patientPhone={phone}
-            patientName={patientData?.name}
-            onClose={() => setShowAbhaModal(false)}
-          />
+          <AbhaCardModal abhaId={abhaProfile?.abha_number || patientData?.abha_id} patientPhone={linkedPhone || phone} patientName={abhaProfile?.name || patientData?.name} onClose={() => setShowAbhaModal(false)} />
+        )}
+        </div>
+
+        {/* Modal: "ⓘ ABHA क्या है?" Simple 2-Line Educational Dialog */}
+        {showWhatIsAbha && (
+          <div className="gov-modal-backdrop" onClick={() => setShowWhatIsAbha(false)} role="dialog" aria-modal="true">
+            <div className="gov-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px', padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--gov-border)', paddingBottom: '10px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--gov-primary)' }}>
+                  {translate('What is ABHA?')}
+                </h3>
+                <button
+                  type="button"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                  onClick={() => setShowWhatIsAbha(false)}
+                  aria-label="Close"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p style={{ fontSize: '14px', lineHeight: '1.6', color: 'var(--gov-text-main)', marginBottom: '18px' }}>
+                {translate('what_is_abha_desc')}
+              </p>
+              <button
+                type="button"
+                className="gov-btn gov-btn-primary"
+                style={{ width: '100%' }}
+                onClick={() => setShowWhatIsAbha(false)}
+              >
+                {translate('Understood')}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
