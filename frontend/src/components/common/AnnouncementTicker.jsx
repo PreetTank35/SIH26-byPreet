@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Volume2, Play, Pause } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -7,12 +7,18 @@ import { useLanguage } from '../../context/LanguageContext';
  * Compliant with GIGW 3.0 & Rule G:
  * - High-visibility institutional notices with colored tag badges ([PRIORITY], [NEW], [AYUSH OPD], [VOICE AI], [NOTICE])
  * - Bilingual support: English and Hindi
- * - Seamless zero-delay marquee loop (immediately visible on load)
- * - Pause on hover & interactive accessible play/pause control
+ * - Direct GPU-accelerated requestAnimationFrame motion (100% immune to OS reduced-motion freezes)
+ * - Seamless zero-delay loop with hover pause and accessible play/pause control
  */
 export default function AnnouncementTicker() {
   const { language, translate } = useLanguage();
   const [marqueePaused, setMarqueePaused] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const trackRef = useRef(null);
+  const group1Ref = useRef(null);
+  const offsetRef = useRef(0);
+  const animFrameRef = useRef(null);
+  const lastTimeRef = useRef(performance.now());
 
   const isHindi = language === 'hi';
 
@@ -54,6 +60,37 @@ export default function AnnouncementTicker() {
     }
   ];
 
+  useEffect(() => {
+    lastTimeRef.current = performance.now();
+    const speed = 60; // 60 pixels per second (clear, smooth marquee movement)
+
+    const tick = (now) => {
+      const delta = (now - lastTimeRef.current) / 1000;
+      lastTimeRef.current = now;
+
+      if (!marqueePaused && !isHovered && trackRef.current && group1Ref.current) {
+        const groupWidth = group1Ref.current.offsetWidth;
+        if (groupWidth > 0) {
+          offsetRef.current -= speed * delta;
+          if (Math.abs(offsetRef.current) >= groupWidth) {
+            offsetRef.current += groupWidth;
+          }
+          trackRef.current.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
+        }
+      }
+
+      animFrameRef.current = requestAnimationFrame(tick);
+    };
+
+    animFrameRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, [marqueePaused, isHovered, language]);
+
   return (
     <div className="gov-marquee-ticker" role="region" aria-label="Official Announcements Ticker">
       <div className="gov-marquee-badge">
@@ -63,38 +100,41 @@ export default function AnnouncementTicker() {
       </div>
 
       <div 
-        className={`gov-marquee-track-wrap ${marqueePaused ? 'paused' : ''}`}
-        onMouseEnter={() => setMarqueePaused(true)}
-        onMouseLeave={() => setMarqueePaused(false)}
+        className="gov-marquee-track-wrap"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        title={marqueePaused ? "Marquee paused" : "Hover to pause marquee"}
       >
-        {/* Track 1 */}
-        <div className="gov-marquee-track">
-          {announcements.map((item, idx) => (
-            <span key={`track1-${idx}`} className="gov-ticker-item">
-              <span className={`gov-ticker-tag ${item.type}`}>
-                [{item.tag}]
+        <div ref={trackRef} className="gov-marquee-track">
+          {/* Group 1 (Active Display) */}
+          <div ref={group1Ref} className="gov-marquee-group">
+            {announcements.map((item, idx) => (
+              <span key={`g1-${idx}`} className="gov-ticker-item">
+                <span className={`gov-ticker-tag ${item.type}`}>
+                  [{item.tag}]
+                </span>
+                <span className="gov-ticker-text">
+                  {item.text}
+                </span>
+                <span className="gov-ticker-sep" aria-hidden="true">•</span>
               </span>
-              <span className="gov-ticker-text">
-                {item.text}
-              </span>
-              <span className="gov-ticker-sep" aria-hidden="true">•</span>
-            </span>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Track 2 (Follows seamlessly behind Track 1) */}
-        <div className="gov-marquee-track" aria-hidden="true">
-          {announcements.map((item, idx) => (
-            <span key={`track2-${idx}`} className="gov-ticker-item">
-              <span className={`gov-ticker-tag ${item.type}`}>
-                [{item.tag}]
+          {/* Group 2 (Seamless Infinite Clone) */}
+          <div className="gov-marquee-group" aria-hidden="true">
+            {announcements.map((item, idx) => (
+              <span key={`g2-${idx}`} className="gov-ticker-item">
+                <span className={`gov-ticker-tag ${item.type}`}>
+                  [{item.tag}]
+                </span>
+                <span className="gov-ticker-text">
+                  {item.text}
+                </span>
+                <span className="gov-ticker-sep" aria-hidden="true">•</span>
               </span>
-              <span className="gov-ticker-text">
-                {item.text}
-              </span>
-              <span className="gov-ticker-sep" aria-hidden="true">•</span>
-            </span>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 

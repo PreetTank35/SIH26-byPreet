@@ -896,22 +896,18 @@ textarea:focus-visible {
 }
 
 .gov-marquee-track {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   flex-shrink: 0;
   white-space: nowrap;
-  animation: marqueeScrollLoop 30s linear infinite;
   will-change: transform;
 }
 
-.gov-marquee-track-wrap:hover .gov-marquee-track,
-.gov-marquee-track-wrap.paused .gov-marquee-track {
-  animation-play-state: paused;
-}
-
-@keyframes marqueeScrollLoop {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-100%); }
+.gov-marquee-group {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .gov-ticker-item {
@@ -2262,7 +2258,9 @@ textarea:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *:not(.gov-marquee-pulse-dot):not(.gov-marquee-track):not(.gov-marquee-group):not(.gov-ticker-item):not(.gov-ticker-tag):not(.gov-ticker-text):not(.gov-ticker-sep),
+  *:not(.gov-marquee-pulse-dot):not(.gov-marquee-track):not(.gov-marquee-group):not(.gov-ticker-item):not(.gov-ticker-tag):not(.gov-ticker-text):not(.gov-ticker-sep)::before,
+  *:not(.gov-marquee-pulse-dot):not(.gov-marquee-track):not(.gov-marquee-group):not(.gov-ticker-item):not(.gov-ticker-tag):not(.gov-ticker-text):not(.gov-ticker-sep)::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
