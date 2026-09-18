@@ -839,7 +839,7 @@ textarea:focus-visible {
 .gov-marquee-badge {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   background: #0B1F3A;
   color: #FFFFFF;
   padding: 0 14px;
@@ -853,6 +853,32 @@ textarea:focus-visible {
   box-shadow: 2px 0 6px rgba(0, 0, 0, 0.12);
 }
 
+.gov-marquee-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #EF4444;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  animation: pulseBeacon 1.6s infinite cubic-bezier(0.66, 0, 0, 1);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes pulseBeacon {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    transform: scale(0.95);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(239, 68, 68, 0);
+    transform: scale(1.15);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    transform: scale(0.95);
+  }
+}
+
 .gov-marquee-icon {
   color: #F59E0B;
 }
@@ -864,7 +890,9 @@ textarea:focus-visible {
   align-items: center;
   position: relative;
   height: 100%;
-  cursor: default;
+  cursor: pointer;
+  mask-image: linear-gradient(to right, transparent 0%, #000 24px, #000 calc(100% - 24px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 24px, #000 calc(100% - 24px), transparent 100%);
 }
 
 .gov-marquee-track {
@@ -872,7 +900,7 @@ textarea:focus-visible {
   align-items: center;
   flex-shrink: 0;
   white-space: nowrap;
-  animation: marqueeLoop 45s linear infinite;
+  animation: marqueeScrollLoop 30s linear infinite;
   will-change: transform;
 }
 
@@ -881,7 +909,7 @@ textarea:focus-visible {
   animation-play-state: paused;
 }
 
-@keyframes marqueeLoop {
+@keyframes marqueeScrollLoop {
   0% { transform: translateX(0); }
   100% { transform: translateX(-100%); }
 }

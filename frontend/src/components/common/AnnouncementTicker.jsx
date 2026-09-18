@@ -57,6 +57,7 @@ export default function AnnouncementTicker() {
   return (
     <div className="gov-marquee-ticker" role="region" aria-label="Official Announcements Ticker">
       <div className="gov-marquee-badge">
+        <span className="gov-marquee-pulse-dot" aria-hidden="true"></span>
         <Volume2 size={13} className="gov-marquee-icon" aria-hidden="true" />
         <span>{translate('Latest Announcements')}</span>
       </div>
