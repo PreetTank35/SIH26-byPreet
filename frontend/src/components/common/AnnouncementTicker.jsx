@@ -4,37 +4,53 @@ import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * AnnouncementTicker — National OPD Announcements Marquee Ticker
- * Compliant with Rule G: High-contrast single-language notice tags [जरूरी] / [IMPORTANT].
- * Zero emojis, includes accessible pause/resume control.
+ * Compliant with GIGW 3.0 & Rule G:
+ * - High-visibility institutional notices with colored tag badges ([PRIORITY], [NEW], [AYUSH OPD], [VOICE AI], [NOTICE])
+ * - Bilingual support: English and Hindi
+ * - Seamless zero-delay marquee loop (immediately visible on load)
+ * - Pause on hover & interactive accessible play/pause control
  */
 export default function AnnouncementTicker() {
-  const { translate } = useLanguage();
+  const { language, translate } = useLanguage();
   const [marqueePaused, setMarqueePaused] = useState(false);
+
+  const isHindi = language === 'hi';
 
   const announcements = [
     {
-      tag: 'IMPORTANT',
+      tag: isHindi ? 'प्राथमिकता' : 'PRIORITY',
       type: 'urgent',
-      key: 'ticker_1',
-      defaultEn: 'OPD Smart Intake Terminal #01 operational for district civil hospital.'
+      text: isHindi 
+        ? 'वरिष्ठ नागरिकों, गर्भवती महिलाओं एवं आपातकालीन मरीजों के लिए तत्काल प्राथमिकता टोकन उपलब्ध है।' 
+        : 'Priority OPD tokens active for Senior Citizens, Expectant Mothers & Emergency cases.'
     },
     {
-      tag: 'NEW',
+      tag: isHindi ? 'नई सुविधा' : 'NEW FEATURE',
       type: 'new',
-      key: 'ticker_2',
-      defaultEn: 'ABHA & Ayushman Bharat digital health registration enabled.'
+      text: isHindi 
+        ? 'स्मार्टफोन से QR स्कैन करें या 14 अंकों का आभा (ABHA) नंबर दर्ज कर एक्सप्रेस चेक-इन करें।' 
+        : 'Scan QR with smartphone or enter 14-digit ABHA ID for instant express check-in.'
     },
     {
-      tag: 'NOTICE',
+      tag: isHindi ? 'आयुष ओपीडी' : 'AYUSH OPD',
+      type: 'ayush',
+      text: isHindi 
+        ? 'कमरा नं. 102 व 201 में आयुर्वेद, होम्योपैथी एवं पंचकर्म विशेषज्ञ परामर्श चालू है।' 
+        : 'Ayurveda, Homeopathy & Panchakarma clinical consultations active in Rooms 102 & 201.'
+    },
+    {
+      tag: isHindi ? 'आवाज से जांच' : 'VOICE AI',
+      type: 'voice',
+      text: isHindi 
+        ? 'भाषिणी AI वॉइस सहायक सक्रिय — माइक दबाकर अपने लक्षण हिंदी, अंग्रेजी या क्षेत्रीय भाषा में बताएं।' 
+        : 'Bhashini Voice AI active — tap mic to speak your symptoms in Hindi, English, or regional languages.'
+    },
+    {
+      tag: isHindi ? 'कतार सूचना' : 'QUEUE NOTICE',
       type: 'notice',
-      key: 'ticker_3',
-      defaultEn: 'Bhashini AI voice assistant active in 12 Indian regional languages.'
-    },
-    {
-      tag: 'SECURE',
-      type: 'secure',
-      key: 'ticker_4',
-      defaultEn: '256-Bit SSL Encrypted & National Health Data Management compliant.'
+      text: isHindi 
+        ? 'पेपरलेस डिजिटल टोकन प्रणाली लागू — आपका नंबर ओपीडी डिस्प्ले स्क्रीन पर पुकारा जाएगा।' 
+        : 'Paperless queue active — your token number will be called on overhead OPD display screens.'
     }
   ];
 
@@ -50,29 +66,32 @@ export default function AnnouncementTicker() {
         onMouseEnter={() => setMarqueePaused(true)}
         onMouseLeave={() => setMarqueePaused(false)}
       >
-        <div className="gov-marquee-content">
+        {/* Track 1 */}
+        <div className="gov-marquee-track">
           {announcements.map((item, idx) => (
-            <span key={idx} className="gov-ticker-item">
+            <span key={`track1-${idx}`} className="gov-ticker-item">
               <span className={`gov-ticker-tag ${item.type}`}>
-                [{translate(item.tag)}]
+                [{item.tag}]
               </span>
               <span className="gov-ticker-text">
-                {translate(item.key, item.defaultEn)}
+                {item.text}
               </span>
               <span className="gov-ticker-sep" aria-hidden="true">•</span>
             </span>
           ))}
         </div>
-        <div className="gov-marquee-content" aria-hidden="true">
+
+        {/* Track 2 (Follows seamlessly behind Track 1) */}
+        <div className="gov-marquee-track" aria-hidden="true">
           {announcements.map((item, idx) => (
-            <span key={idx} className="gov-ticker-item">
+            <span key={`track2-${idx}`} className="gov-ticker-item">
               <span className={`gov-ticker-tag ${item.type}`}>
-                [{translate(item.tag)}]
+                [{item.tag}]
               </span>
               <span className="gov-ticker-text">
-                {translate(item.key, item.defaultEn)}
+                {item.text}
               </span>
-              <span className="gov-ticker-sep">•</span>
+              <span className="gov-ticker-sep" aria-hidden="true">•</span>
             </span>
           ))}
         </div>
@@ -82,7 +101,7 @@ export default function AnnouncementTicker() {
         type="button"
         className="gov-marquee-pause-btn"
         onClick={() => setMarqueePaused(!marqueePaused)}
-        title={marqueePaused ? "Play Marquee" : "Pause Marquee"}
+        title={marqueePaused ? (isHindi ? "समाचार शुरू करें" : "Resume Announcements") : (isHindi ? "समाचार रोकें" : "Pause Announcements")}
         aria-label={marqueePaused ? "Resume news ticker" : "Pause news ticker"}
       >
         {marqueePaused ? <Play size={11} aria-hidden="true" /> : <Pause size={11} aria-hidden="true" />}
@@ -90,3 +109,4 @@ export default function AnnouncementTicker() {
     </div>
   );
 }
+
