@@ -1,9 +1,11 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Printer, X, CheckCircle2, Building2 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function OpdReceiptSlip({ token, hospitalName, onClose }) {
   if (!token) return null;
+  const { language, translate } = useLanguage();
 
   const printSlip = () => {
     window.print();
@@ -25,9 +27,14 @@ export default function OpdReceiptSlip({ token, hospitalName, onClose }) {
     <div className="gov-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="opd-slip-title">
       <div className="gov-modal-content" style={{ maxWidth: '440px', padding: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 id="opd-slip-title" style={{ fontSize: '16px', fontWeight: '800', color: 'var(--gov-primary)' }}>
-            Official OPD Consultation Queue Slip
-          </h3>
+          <div>
+            <h3 id="opd-slip-title" style={{ fontSize: '16px', fontWeight: '800', color: 'var(--gov-primary)', margin: 0 }}>
+              Official OPD Consultation Queue Slip
+            </h3>
+            <div style={{ fontSize: '12px', color: 'var(--gov-text-muted)', marginTop: '2px' }}>
+              आधिकारिक ओपीडी परामर्श कतार पर्ची
+            </div>
+          </div>
           <button 
             type="button"
             onClick={onClose}
@@ -53,7 +60,7 @@ export default function OpdReceiptSlip({ token, hospitalName, onClose }) {
           {/* Header */}
           <div style={{ borderBottom: '1px solid var(--gov-border)', paddingBottom: '12px', marginBottom: '12px' }}>
             <div style={{ fontSize: '10.5px', fontWeight: '800', letterSpacing: '0.8px', textTransform: 'uppercase', color: 'var(--gov-text-muted)' }}>
-              Ministry of Health & Family Welfare / Ministry of Ayush
+              Ministry of Health & Family Welfare • स्वास्थ्य एवं परिवार कल्याण मंत्रालय
             </div>
             <div style={{ fontSize: '15px', fontWeight: '800', color: 'var(--gov-primary)', marginTop: '4px' }}>
               {hospitalName || 'District Civil & AYUSH Hospital'}
@@ -66,35 +73,35 @@ export default function OpdReceiptSlip({ token, hospitalName, onClose }) {
           {/* Token Big Display */}
           <div style={{ margin: '14px 0', padding: '14px', backgroundColor: 'var(--gov-primary-light)', borderRadius: 'var(--radius-md)', border: '1px solid var(--gov-primary-border)' }}>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', fontWeight: '800', color: 'var(--gov-primary)', letterSpacing: '0.5px' }}>
-              OPD Queue Token Number
+              OPD Queue Token Number • ओपीडी टोकन संख्या
             </div>
             <div style={{ fontSize: '48px', fontWeight: '900', color: 'var(--gov-primary)', lineHeight: 1.1, margin: '4px 0' }}>
               #{token.token_number}
             </div>
             {token.priority && (
               <div style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--status-priority)', marginTop: '2px' }}>
-                [TRIAGE PRIORITY APPOINTMENT]
+                [TRIAGE PRIORITY APPOINTMENT • प्राथमिकता नियुक्ति]
               </div>
             )}
           </div>
 
           {/* Details Table */}
           <div style={{ textAlign: 'left', fontSize: '13px', margin: '12px 0', lineHeight: 1.8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--gov-text-muted)' }}>Allocated Room:</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dotted #e2e8f0', paddingBottom: '4px' }}>
+              <span style={{ color: 'var(--gov-text-muted)' }}>Allocated Room / कक्ष:</span>
               <span style={{ fontWeight: '800', color: 'var(--gov-accent)' }}>{token.room_number || 'OPD Waiting Room'}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--gov-text-muted)' }}>Department:</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dotted #e2e8f0', padding: '4px 0' }}>
+              <span style={{ color: 'var(--gov-text-muted)' }}>Department / विभाग:</span>
               <span style={{ fontWeight: '700' }}>{token.department_name || 'General OPD'}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--gov-text-muted)' }}>Date & Time:</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dotted #e2e8f0', padding: '4px 0' }}>
+              <span style={{ color: 'var(--gov-text-muted)' }}>Date & Time / दिनांक:</span>
               <span style={{ fontWeight: '600' }}>{currentDate}, {currentTime}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--gov-text-muted)' }}>Physical Status:</span>
-              <span style={{ fontWeight: '700', color: 'var(--status-completed)' }}>PRESENCE VERIFIED</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '4px' }}>
+              <span style={{ color: 'var(--gov-text-muted)' }}>Status / स्थिति:</span>
+              <span style={{ fontWeight: '700', color: 'var(--status-completed)' }}>VERIFIED • सत्यापित</span>
             </div>
           </div>
 
@@ -107,7 +114,8 @@ export default function OpdReceiptSlip({ token, hospitalName, onClose }) {
               style={{ margin: '0 auto' }}
             />
             <div style={{ fontSize: '11px', color: 'var(--gov-text-subtle)', marginTop: '8px' }}>
-              Verify at Doctor Room / Pharmacy Counter
+              Verify at Doctor Room / Pharmacy Counter<br/>
+              डॉक्टर कक्ष या फार्मेसी काउंटर पर स्कैन करवाएं
             </div>
           </div>
         </div>
@@ -120,7 +128,7 @@ export default function OpdReceiptSlip({ token, hospitalName, onClose }) {
             style={{ flex: 1 }}
             onClick={onClose}
           >
-            Close
+            {translate('close') || 'Close'}
           </button>
           <button 
             type="button"
@@ -128,7 +136,7 @@ export default function OpdReceiptSlip({ token, hospitalName, onClose }) {
             style={{ flex: 1 }}
             onClick={printSlip}
           >
-            <Printer size={15} /> Print Slip
+            <Printer size={15} /> {translate('print') || 'Print Slip'}
           </button>
         </div>
       </div>

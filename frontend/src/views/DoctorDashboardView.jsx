@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useWebSocket } from '../context/WebSocketContext';
@@ -17,7 +17,7 @@ import OrsLoginCard from '../components/common/OrsLoginCard';
 export default function DoctorDashboardView() {
   const { staffUser, staffToken, loginStaff, logoutStaff } = useAuth();
   const { translate } = useLanguage();
-  const { caseReadyEvent } = useWebSocket();
+  const { isConnected, caseReadyEvent, queueUpdateEvent, queueUpdateTrigger, triggerSync } = useWebSocket();
 
   // Login form if not logged in
   const [email, setEmail] = useState('dr.ananya@civildistrict.gov.in');
@@ -37,6 +37,10 @@ export default function DoctorDashboardView() {
   const [selectedToken, setSelectedToken] = useState(null);
   const [consultDetail, setConsultDetail] = useState(null);
   const [loadingConsult, setLoadingConsult] = useState(false);
+  const [reportLang, setReportLang] = useState('en'); // 'en' | 'hi' | 'bilingual'
+  const [deptFilter, setDeptFilter] = useState('all'); // 'all' | 'my'
+  const prevQueueLengthRef = useRef(0);
+  const [newPatientAlert, setNewPatientAlert] = useState(null);
 
   // Prescription Form State
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,46 +51,73 @@ export default function DoctorDashboardView() {
   const [savingRx, setSavingRx] = useState(false);
   const [successNotice, setSuccessNotice] = useState(null);
 
-  // Fetch queue on mount & whenever caseReadyEvent arrives
-  useEffect(() => {
-    if (staffToken) {
-      loadQueue();
-    }
-  }, [staffToken, caseReadyEvent]);
-
-  // When selected token changes, fetch full consult card
-  useEffect(() => {
-    if (selectedToken && staffToken) {
-      loadConsultDetail(selectedToken.case_id);
-    }
-  }, [selectedToken, staffToken]);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setAuthLoading(true);
-    setAuthError(null);
-    try {
-      await loginStaff(email, password);
-    } catch (err) {
-      setAuthError(err.message);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
   const loadQueue = async () => {
+    if (!staffToken) return;
     try {
-      const list = await api.get('/doctor/queue', staffToken);
+      const endpoint = deptFilter === 'my' && staffUser?.department_id
+        ? `/doctor/queue?department_id=${staffUser.department_id}`
+        : '/doctor/queue?department_id=all';
+
+      const list = await api.get(endpoint, staffToken);
       setQueue(list);
-      if (list.length > 0 && !selectedToken) {
-        setSelectedToken(list[0]);
+
+      // Check if new patient joined
+      if (list.length > prevQueueLengthRef.current && prevQueueLengthRef.current > 0) {
+        setNewPatientAlert(`New Patient #${list[0]?.token_number} added to queue!`);
+        try {
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.3);
+        } catch {}
+        setTimeout(() => setNewPatientAlert(null), 4000);
+      }
+      prevQueueLengthRef.current = list.length;
+
+      if (list.length > 0) {
+        if (!selectedToken) {
+          setSelectedToken(list[0]);
+          loadConsultDetail(list[0].case_id);
+        }
       }
     } catch (err) {
       console.log('Error loading queue:', err.message);
+      if (err.message && (err.message.includes('Token expired') || err.message.includes('401'))) {
+        logoutStaff();
+      }
     }
   };
 
+  // Real-time dynamic auto-sync: 3-second heartbeat poll + immediate sync on WebSocket triggers
+  useEffect(() => {
+    if (!staffToken) return;
+
+    loadQueue();
+
+    const intervalId = setInterval(() => {
+      loadQueue();
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [staffToken, queueUpdateTrigger, deptFilter, caseReadyEvent, queueUpdateEvent]);
+
+  // When selected token changes or is updated, fetch full consult card and clinical report
+  useEffect(() => {
+    if (selectedToken?.case_id && staffToken) {
+      loadConsultDetail(selectedToken.case_id);
+    }
+  }, [selectedToken?.id, selectedToken?.case_id, staffToken]);
+
   const loadConsultDetail = async (caseId) => {
+    if (!caseId || !staffToken) return;
     setLoadingConsult(true);
     try {
       const data = await api.get(`/doctor/cases/${caseId}/consult-card`, staffToken);
@@ -223,22 +254,83 @@ export default function DoctorDashboardView() {
       <aside className="queue-sidebar" aria-label="OPD Patient Queue">
         <div className="queue-sidebar-header">
           <div>
-            <h3>
-              <Users size={16} /> Live OPD Queue ({queue.length})
-            </h3>
-            <span style={{ fontSize: '12px', color: 'var(--gov-text-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <h3 style={{ margin: 0 }}>
+                <Users size={16} /> Live OPD Queue ({queue.length})
+              </h3>
+              <span 
+                style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '4px',
+                  fontSize: '10px', 
+                  fontWeight: '800', 
+                  padding: '2px 6px', 
+                  borderRadius: '10px',
+                  backgroundColor: isConnected ? '#dcfce7' : '#fef3c7',
+                  color: isConnected ? '#166534' : '#92400e'
+                }}
+                title={isConnected ? "Real-time WebSocket Connected" : "Background Auto-Syncing (3s Heartbeat)"}
+              >
+                <span style={{ 
+                  width: '6px', 
+                  height: '6px', 
+                  borderRadius: '50%', 
+                  backgroundColor: isConnected ? '#22c55e' : '#f59e0b'
+                }} />
+                {isConnected ? 'LIVE' : 'SYNCING'}
+              </span>
+            </div>
+            <span style={{ fontSize: '11.5px', color: 'var(--gov-text-muted)' }}>
               {staffUser?.name} • Room 102
             </span>
           </div>
           <button 
             type="button" 
             className="gov-btn gov-btn-outline gov-btn-sm" 
-            onClick={loadQueue} 
-            title="Refresh OPD Queue"
+            onClick={() => { triggerSync(); loadQueue(); }} 
+            title="Refresh OPD Queue immediately"
           >
             <RefreshCw size={12} /> Refresh
           </button>
         </div>
+
+        {/* Real-time Department Filter Tabs */}
+        <div style={{ display: 'flex', padding: '6px 12px', gap: '6px', borderBottom: '1px solid var(--gov-border)', backgroundColor: '#f8fafc' }}>
+          <button
+            type="button"
+            className={`gov-btn gov-btn-sm ${deptFilter === 'all' ? 'gov-btn-primary' : 'gov-btn-outline'}`}
+            style={{ flex: 1, padding: '4px 8px', fontSize: '11.5px', fontWeight: '700' }}
+            onClick={() => setDeptFilter('all')}
+          >
+            All OPD ({queue.length})
+          </button>
+          <button
+            type="button"
+            className={`gov-btn gov-btn-sm ${deptFilter === 'my' ? 'gov-btn-primary' : 'gov-btn-outline'}`}
+            style={{ flex: 1, padding: '4px 8px', fontSize: '11.5px', fontWeight: '700' }}
+            onClick={() => setDeptFilter('my')}
+          >
+            {staffUser?.department_name ? staffUser.department_name.split(' ')[0] : 'My Dept'}
+          </button>
+        </div>
+
+        {newPatientAlert && (
+          <div style={{ 
+            backgroundColor: '#dcfce7', 
+            borderBottom: '1px solid #86efac', 
+            padding: '7px 12px', 
+            fontSize: '11.5px', 
+            fontWeight: '700', 
+            color: '#166534',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <Sparkles size={13} color="#16a34a" />
+            <span>{newPatientAlert}</span>
+          </div>
+        )}
 
         <div className="queue-list" role="list">
           {queue.length === 0 ? (
@@ -253,8 +345,8 @@ export default function DoctorDashboardView() {
                 role="listitem"
                 tabIndex={0}
                 className={`queue-item-card ${selectedToken?.id === t.id ? 'selected' : ''} ${t.priority ? 'priority-card' : ''}`}
-                onClick={() => setSelectedToken(t)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedToken(t); }}
+                onClick={() => { setSelectedToken(t); loadConsultDetail(t.case_id); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSelectedToken(t); loadConsultDetail(t.case_id); } }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <span style={{ fontWeight: '800', fontSize: '16px', color: 'var(--gov-primary)' }}>
@@ -306,7 +398,13 @@ export default function DoctorDashboardView() {
           </div>
         )}
 
-        {selectedToken && consultDetail ? (
+        {loadingConsult ? (
+          <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--gov-primary)' }}>
+            <RefreshCw size={36} style={{ margin: '0 auto 16px', display: 'block', animation: 'spin 1s linear infinite' }} />
+            <h3 style={{ fontSize: '16px', fontWeight: '700' }}>Loading Patient Clinical Intake & EMR Card...</h3>
+            <p style={{ fontSize: '13px', color: 'var(--gov-text-muted)' }}>Retrieving AI assessment, symptom inquiry transcript & vital records</p>
+          </div>
+        ) : selectedToken && consultDetail ? (
           <>
             {/* Patient Header Banner */}
             <div className="patient-banner-bar">
@@ -377,12 +475,65 @@ export default function DoctorDashboardView() {
                     {/* 1. AI Clinical Intake Report Card */}
                     {aiReport && (
                       <div className="doctor-report-card">
-                        <div className="doctor-report-header">
+                        <div className="doctor-report-header" style={{ flexWrap: 'wrap', gap: '8px' }}>
                           <div className="doctor-report-title">
                             <Bot size={17} color="var(--gov-primary)" />
                             <span>AI Clinical Intake Report</span>
                           </div>
-                          <div style={{ display: 'flex', gap: '6px' }}>
+
+                          {/* Language Switcher Pill for Doctor */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#F1F5F9', padding: '2px 4px', borderRadius: '4px', border: '1px solid var(--gov-border)' }}>
+                            <button
+                              type="button"
+                              onClick={() => setReportLang('en')}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                fontWeight: reportLang === 'en' ? 700 : 500,
+                                backgroundColor: reportLang === 'en' ? 'var(--gov-primary)' : 'transparent',
+                                color: reportLang === 'en' ? '#FFFFFF' : 'var(--gov-text-muted)',
+                                border: 'none',
+                                borderRadius: '3px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              English
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setReportLang('hi')}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                fontWeight: reportLang === 'hi' ? 700 : 500,
+                                backgroundColor: reportLang === 'hi' ? 'var(--gov-primary)' : 'transparent',
+                                color: reportLang === 'hi' ? '#FFFFFF' : 'var(--gov-text-muted)',
+                                border: 'none',
+                                borderRadius: '3px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              हिन्दी
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setReportLang('bilingual')}
+                              style={{
+                                padding: '2px 8px',
+                                fontSize: '11px',
+                                fontWeight: reportLang === 'bilingual' ? 700 : 500,
+                                backgroundColor: reportLang === 'bilingual' ? 'var(--gov-primary)' : 'transparent',
+                                color: reportLang === 'bilingual' ? '#FFFFFF' : 'var(--gov-text-muted)',
+                                border: 'none',
+                                borderRadius: '3px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              द्विभाषी (Dual)
+                            </button>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
                             <span className="doctor-report-badge" style={{ 
                               backgroundColor: aiReport.severity_assessment === 'severe' ? 'var(--status-priority-bg)' : 'var(--gov-primary-light)',
                               color: aiReport.severity_assessment === 'severe' ? 'var(--status-priority)' : 'var(--gov-primary)',
@@ -400,33 +551,68 @@ export default function DoctorDashboardView() {
                           </div>
                         </div>
 
+                        {/* Chief Complaint */}
                         <div className="doctor-report-section">
-                          <div className="doctor-report-label">Chief Complaint</div>
+                          <div className="doctor-report-label">
+                            {reportLang === 'hi' ? 'मुख्य शिकायत (Chief Complaint)' : 'Chief Complaint'}
+                          </div>
                           <div className="doctor-report-text" style={{ fontWeight: '700', color: 'var(--gov-primary)' }}>
-                            {aiReport.chief_complaint || consultDetail.case?.chief_complaint || 'General Checkup'}
+                            {reportLang === 'hi' 
+                              ? (aiReport.chief_complaint_hi || aiReport.chief_complaint || consultDetail.case?.chief_complaint || 'सामान्य जांच')
+                              : (aiReport.chief_complaint_en || aiReport.chief_complaint || consultDetail.case?.chief_complaint || 'General Checkup')}
                           </div>
+                          {reportLang === 'bilingual' && aiReport.chief_complaint_hi && (
+                            <div className="doctor-report-text" style={{ fontSize: '13px', color: 'var(--gov-secondary)', marginTop: '4px' }}>
+                              हिन्दी: {aiReport.chief_complaint_hi}
+                            </div>
+                          )}
                         </div>
 
+                        {/* Symptom Summary */}
                         <div className="doctor-report-section">
-                          <div className="doctor-report-label">Symptom Summary</div>
-                          <div className="doctor-report-text">
-                            {aiReport.symptom_summary || aiReport.report_text_en}
+                          <div className="doctor-report-label">
+                            {reportLang === 'hi' ? 'लक्षण सारांश (Symptom Summary)' : 'Symptom Summary'}
                           </div>
+                          <div className="doctor-report-text">
+                            {reportLang === 'hi'
+                              ? (aiReport.symptom_summary_hi || aiReport.report_text_hi || aiReport.symptom_summary || aiReport.report_text_en)
+                              : (aiReport.symptom_summary_en || aiReport.symptom_summary || aiReport.report_text_en)}
+                          </div>
+                          {reportLang === 'bilingual' && (aiReport.symptom_summary_hi || aiReport.report_text_hi) && (
+                            <div className="doctor-report-text" style={{ fontSize: '13px', color: '#1E3A8A', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #CBD5E1' }}>
+                              <strong>हिन्दी सारांश:</strong> {aiReport.symptom_summary_hi || aiReport.report_text_hi}
+                            </div>
+                          )}
                         </div>
 
+                        {/* Recommended Department */}
                         <div className="doctor-report-section" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                          <span className="doctor-report-label" style={{ margin: 0 }}>Recommended Department:</span>
+                          <span className="doctor-report-label" style={{ margin: 0 }}>
+                            {reportLang === 'hi' ? 'अनुशंसित विभाग (Dept):' : 'Recommended Department:'}
+                          </span>
                           <span style={{ fontWeight: '700', color: 'var(--gov-accent)', fontSize: '13px' }}>
-                            {aiReport.recommended_department || 'General Medicine'}
+                            {reportLang === 'hi' 
+                              ? (aiReport.recommended_department_hi || aiReport.recommended_department || 'सामान्य चिकित्सा')
+                              : (aiReport.recommended_department_en || aiReport.recommended_department || 'General Medicine')}
                           </span>
                         </div>
 
-                        {aiReport.clinical_notes && (
+                        {/* Clinical Observations & Notes */}
+                        {(aiReport.clinical_notes || aiReport.clinical_notes_hi) && (
                           <div className="doctor-report-section" style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed var(--gov-border)' }}>
-                            <div className="doctor-report-label">Clinical Observations & Notes</div>
-                            <div className="doctor-report-text" style={{ fontSize: '12.5px', color: 'var(--gov-text-muted)' }}>
-                              {aiReport.clinical_notes}
+                            <div className="doctor-report-label">
+                              {reportLang === 'hi' ? 'क्लिनिकल टिप्पणियाँ व अवलोकन' : 'Clinical Observations & Notes'}
                             </div>
+                            <div className="doctor-report-text" style={{ fontSize: '12.5px', color: 'var(--gov-text-muted)' }}>
+                              {reportLang === 'hi' 
+                                ? (aiReport.clinical_notes_hi || aiReport.clinical_notes)
+                                : (aiReport.clinical_notes_en || aiReport.clinical_notes)}
+                            </div>
+                            {reportLang === 'bilingual' && aiReport.clinical_notes_hi && (
+                              <div className="doctor-report-text" style={{ fontSize: '12px', color: '#046A38', marginTop: '4px' }}>
+                                हिन्दी: {aiReport.clinical_notes_hi}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

@@ -10,7 +10,7 @@ import {
   Bot, UserCircle, Send, Stethoscope, ClipboardList, Activity, MessageCircle,
   Hash, AtSign, PhoneCall, User, X, Shield, FileUp, Wifi, Info
 } from 'lucide-react';
-import { speakText, startSpeechRecognition } from '../utils/speechHelper';
+import { speakText, stopAllSpeech, playAssistantSpeech, startSpeechRecognition } from '../utils/speechHelper';
 import OpdReceiptSlip from '../components/OpdReceiptSlip';
 import AbhaCardModal from '../components/AbhaCardModal';
 import LoginMethodSelector from '../components/common/LoginMethodSelector';
@@ -25,11 +25,12 @@ export default function PatientPhoneView() {
     hospitals, selectedHospitalId, selectHospital, patientToken, patientSession, patientData, 
     verifyPatientOtp, updatePatientSessionVerified, logoutPatient 
   } = useAuth();
-  const { yourTurnEvent, subscribeToCase } = useWebSocket();
+  const { yourTurnEvent, subscribeToCase, queueUpdateTrigger, triggerSync } = useWebSocket();
 
   const [screen, setScreen] = useState(patientToken ? 'waiting' : 'login');
   const [consentGiven, setConsentGiven] = useState(false);
   const { language: currentLang, translate } = useLanguage();
+  const [isKioskLinked, setIsKioskLinked] = useState(false);
 
   // Patient Login Method & Help state
   const [loginMethod, setLoginMethod] = useState(null); // 'abha' | 'mobile' | null
@@ -85,13 +86,25 @@ export default function PatientPhoneView() {
   const [isRecording, setIsRecording] = useState(false);
   const [voiceNotice, setVoiceNotice] = useState('');
 
-  // Audio Speech TTS
+  // Audio Speech TTS with lifecycle cancellation
   const handleSpeakQuestion = (question) => {
     const q = question || currentNode?.question || currentQuestion?.question;
     if (!q) return;
     const textToSpeak = q[currentLang] || q.en;
-    speakText(textToSpeak, currentLang);
+    playAssistantSpeech(textToSpeak, currentLang);
   };
+
+  // Auto-silence voice assistant whenever user navigates away from AI inquiry screen or unmounts
+  useEffect(() => {
+    if (screen !== 'ai_inquiry') {
+      stopAllSpeech();
+      setIsRecording(false);
+    }
+
+    return () => {
+      stopAllSpeech();
+    };
+  }, [screen]);
 
   // Document Upload
   const [uploading, setUploading] = useState(false);
@@ -111,6 +124,12 @@ export default function PatientPhoneView() {
     const qOtpSent = params.get('otp_sent');
     const qName = params.get('name');
     const qAbha = params.get('abha');
+    const qKiosk = params.get('kiosk');
+    const qSession = params.get('session_id');
+
+    if (qKiosk === '1' || qSession) {
+      setIsKioskLinked(true);
+    }
 
     if (qHosp) selectHospital(qHosp);
     if (qPhone) {
@@ -301,20 +320,9 @@ export default function PatientPhoneView() {
       setCurrentQuestion(firstQ);
       setScreen('ai_inquiry');
 
-      // TTS via Bhashini for first question
-      try {
-        const textToSpeak = firstQ.question?.[currentLang] || firstQ.question?.en;
-        const ttsRes = await api.post('/intake/text-to-speech', {
-          text: textToSpeak,
-          language: currentLang === 'en' ? 'en' : 'hi'
-        });
-        if (ttsRes.audio_base64) {
-          const audio = new Audio(`data:audio/wav;base64,${ttsRes.audio_base64}`);
-          audio.play().catch(() => {});
-        }
-      } catch {
-        speakText(firstQ.question?.[currentLang] || firstQ.question?.en, currentLang);
-      }
+      // Instant zero-lag TTS speech
+      const textToSpeak = firstQ.question?.[currentLang] || firstQ.question?.en;
+      playAssistantSpeech(textToSpeak, currentLang);
     } catch (err) {
       // Fallback to legacy intake
       setScreen('intake');
@@ -326,18 +334,21 @@ export default function PatientPhoneView() {
 
   const handleOptionSelect = async (optionId, optionLabel) => {
     if (!currentQuestion) return;
+    stopAllSpeech();
     const answerText = optionLabel?.[currentLang] || optionLabel?.en || optionId;
     await processAnswer(answerText);
   };
 
   const handleTextSubmit = async () => {
     if (!textInput.trim()) return;
+    stopAllSpeech();
     await processAnswer(textInput.trim());
     setTextInput('');
   };
 
   const processAnswer = async (answerText) => {
     if (!currentQuestion) return;
+    stopAllSpeech();
     setLoading(true);
     setError(null);
 
@@ -358,25 +369,16 @@ export default function PatientPhoneView() {
       });
 
       if (nextQ.is_terminal) {
+        stopAllSpeech();
         setCurrentQuestion(null);
         // Documents already uploaded, generate report directly
         const ocrTexts = uploadedDocs.filter(d => d.ocr_text).map(d => d.ocr_text);
         await generateClinicalReport(newHistory, ocrTexts);
       } else {
         setCurrentQuestion(nextQ);
-        // TTS via Bhashini
-        try {
-          const ttsRes = await api.post('/intake/text-to-speech', {
-            text: nextQ.question?.[currentLang] || nextQ.question?.en,
-            language: currentLang === 'en' ? 'en' : 'hi'
-          });
-          if (ttsRes.audio_base64) {
-            const audio = new Audio(`data:audio/wav;base64,${ttsRes.audio_base64}`);
-            audio.play().catch(() => {});
-          }
-        } catch {
-          speakText(nextQ.question?.[currentLang] || nextQ.question?.en, currentLang);
-        }
+        // Instant zero-lag TTS speech
+        const nextText = nextQ.question?.[currentLang] || nextQ.question?.en;
+        playAssistantSpeech(nextText, currentLang);
       }
     } catch (err) {
       setError(err.message);
@@ -462,6 +464,7 @@ export default function PatientPhoneView() {
 
   // ===== REPORT GENERATION =====
   const generateClinicalReport = async (history, ocrTexts = []) => {
+    stopAllSpeech();
     setLoading(true);
     setScreen('report');
     try {
@@ -643,6 +646,13 @@ export default function PatientPhoneView() {
 
         {/* Main Single-Scroll Content Area */}
         <div className={`patient-phone-body ${screen === 'ai_inquiry' ? 'inquiry-active' : ''}`}>
+          {isKioskLinked && (
+            <div style={{ backgroundColor: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <CheckCircle2 size={18} color="#059669" />
+              <span>{currentLang === 'hi' ? 'कियोस्क सत्र से सफलतापूर्वक जुड़ा हुआ (Terminal #01)' : 'Connected to Kiosk Intake Session (Terminal #01)'}</span>
+            </div>
+          )}
+
           {error && (
             <div role="alert" style={{ backgroundColor: 'var(--status-priority-bg)', color: 'var(--status-priority)', border: '1px solid var(--status-priority-border)', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: '16px', fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertCircle size={16} />

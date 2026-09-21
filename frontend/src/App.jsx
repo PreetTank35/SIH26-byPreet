@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { WebSocketProvider } from './context/WebSocketContext';
@@ -10,6 +10,7 @@ import AdminPortalView from './views/AdminPortalView';
 import GovHeader from './components/common/GovHeader';
 import GovBreadcrumb from './components/common/GovBreadcrumb';
 import GovFooter from './components/common/GovFooter';
+import SmartScrollAssistant from './components/common/SmartScrollAssistant';
 
 // Breadcrumb trails for each view
 const breadcrumbMap = {
@@ -32,10 +33,15 @@ const breadcrumbMap = {
   ]
 };
 
-// Main Application Layout Shell
+// Main Application Layout Shell with Smart Scroll Architecture
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Scroll smoothly to top on every route transition
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [location.pathname]);
 
   const activeView = location.pathname.startsWith('/doctor')
     ? 'doctor'
@@ -52,13 +58,7 @@ function AppLayout() {
   };
 
   return (
-    <div style={{ 
-      height: '100vh', 
-      display: 'flex', 
-      flexDirection: 'column',
-      backgroundColor: 'transparent',
-      overflow: 'hidden'
-    }}>
+    <div className="app-root-shell">
       {/* Skip to Main Content Link for Keyboard / Screen Reader Accessibility */}
       <a className="skip-link" href="#main-content">
         Skip to main content
@@ -70,25 +70,16 @@ function AppLayout() {
         onViewChange={handleViewChange} 
       />
 
-      {/* Government Breadcrumb Navigation Strip */}
-      <GovBreadcrumb
-        items={breadcrumbMap[activeView] || breadcrumbMap.kiosk}
-        onNavigate={handleViewChange}
-      />
+      {/* Government Breadcrumb Navigation Strip — Shown on Portals (Doctor/Admin), hidden on Kiosk to maximize terminal touchscreen area */}
+      {activeView !== 'kiosk' && (
+        <GovBreadcrumb
+          items={breadcrumbMap[activeView] || breadcrumbMap.doctor}
+          onNavigate={handleViewChange}
+        />
+      )}
 
-      {/* Main Content Area — Scroll locked to viewport */}
-      <main 
-        id="main-content" 
-        style={{ 
-          flex: 1, 
-          display: 'flex', 
-          flexDirection: 'column',
-          backgroundColor: 'transparent',
-          overflow: 'hidden',
-          minHeight: 0
-        }} 
-        tabIndex="-1"
-      >
+      {/* Main Content Area — Automatically expands document body size when content grows */}
+      <main id="main-content" tabIndex="-1">
         <Routes>
           {/* Kiosk Terminal (Default Primary Public Interface) */}
           <Route path="/" element={<KioskView />} />
@@ -112,7 +103,10 @@ function AppLayout() {
         </Routes>
       </main>
 
-      {/* Official Government Footer — Fixed at Bottom */}
+      {/* Smart Scroll Assistant — Floating cue & back-to-top when content overflows */}
+      <SmartScrollAssistant />
+
+      {/* Official Government Footer */}
       <GovFooter />
     </div>
   );

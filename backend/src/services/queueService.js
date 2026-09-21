@@ -57,7 +57,7 @@ async function issueToken(caseId, hospitalId, departmentId, isPriority = false, 
 
   const cDetail = caseDetailRes.rows[0];
 
-  // Emit single lightweight WS event to hospital room: case_ready
+  // Emit WS events to hospital room: case_ready & queue_update
   emitToRoom(`hospital:${hospitalId}`, {
     event: 'case_ready',
     token_id: token.id,
@@ -67,7 +67,18 @@ async function issueToken(caseId, hospitalId, departmentId, isPriority = false, 
     patient_name: cDetail?.patient_name || 'Patient',
     chief_complaint: cDetail?.chief_complaint || 'General Consultation',
     department: cDetail?.department_name || 'General OPD',
+    department_id: departmentId,
     created_at: cDetail?.created_at || new Date()
+  });
+
+  emitToRoom(`hospital:${hospitalId}`, {
+    event: 'queue_update',
+    action: 'token_issued',
+    hospital_id: hospitalId,
+    token_id: token.id,
+    token_number: token.token_number,
+    department_id: departmentId,
+    timestamp: new Date().toISOString()
   });
 
   return token;
@@ -95,7 +106,7 @@ async function getDoctorQueue(hospitalId, departmentId = null) {
   `;
   const params = [hospitalId, today];
 
-  if (departmentId) {
+  if (departmentId && departmentId !== 'all') {
     sql += ` AND t.department_id = $3`;
     params.push(departmentId);
   }
@@ -143,6 +154,17 @@ async function callPatient(tokenId, doctorId) {
     called_at: token.called_at
   });
 
+  // Broadcast to entire hospital room so all doctors and screens update live
+  emitToRoom(`hospital:${token.hospital_id}`, {
+    event: 'queue_update',
+    action: 'patient_called',
+    token_id: token.id,
+    token_number: token.token_number,
+    room_number: roomNumber,
+    status: 'called',
+    timestamp: new Date().toISOString()
+  });
+
   return token;
 }
 
@@ -162,6 +184,14 @@ async function startConsult(tokenId) {
   const token = tokenRes.rows[0];
   await query(`UPDATE cases SET status = 'in_consult' WHERE id = $1`, [token.case_id]);
 
+  emitToRoom(`hospital:${token.hospital_id}`, {
+    event: 'queue_update',
+    action: 'consult_started',
+    token_id: token.id,
+    status: 'in_consult',
+    timestamp: new Date().toISOString()
+  });
+
   return token;
 }
 
@@ -173,7 +203,17 @@ async function markNoShow(tokenId) {
     `UPDATE tokens SET status = 'no_show' WHERE id = $1 RETURNING *`,
     [tokenId]
   );
-  return res.rows[0];
+  const token = res.rows[0];
+  if (token) {
+    emitToRoom(`hospital:${token.hospital_id}`, {
+      event: 'queue_update',
+      action: 'marked_no_show',
+      token_id: token.id,
+      status: 'no_show',
+      timestamp: new Date().toISOString()
+    });
+  }
+  return token;
 }
 
 /**

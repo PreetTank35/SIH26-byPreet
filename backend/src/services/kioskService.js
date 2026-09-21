@@ -107,7 +107,113 @@ async function verifyKioskPresence(sessionId, code) {
   };
 }
 
+const crypto = require('crypto');
+
+/**
+ * Create a new Intake Session checkpoint on Kiosk button click
+ * Default TTL: 5 minutes (300 seconds)
+ */
+async function createIntakeSession(hospitalId = null, kioskDeviceId = null, languagePref = 'hi') {
+  let effectiveHospId = hospitalId;
+  if (!effectiveHospId) {
+    const hospRes = await query(`SELECT id FROM hospitals LIMIT 1`);
+    if (hospRes.rowCount > 0) {
+      effectiveHospId = hospRes.rows[0].id;
+    } else {
+      effectiveHospId = 'hosp-0000-0000-0000-0001';
+    }
+  }
+
+  // 1. Generate verification code
+  const verifyData = await generateVerificationCode(effectiveHospId, kioskDeviceId);
+
+  // 2. Create placeholder or guest patient
+  const patRes = await query(
+    `INSERT INTO patients (hospital_id, full_name, is_guest)
+     VALUES ($1, 'Citizen Intake', true)
+     RETURNING id`,
+    [effectiveHospId]
+  );
+  const patientId = patRes.rows?.[0]?.id || `pat-${Date.now()}`;
+
+  // 3. Generate session token & 5-minute TTL
+  const sessionToken = crypto.randomBytes(24).toString('hex');
+  const ttlMinutes = 5;
+  const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+
+  const newSessionRes = await query(
+    `INSERT INTO patient_sessions (patient_id, hospital_id, token, language_pref, status, is_kiosk_verified, expires_at)
+     VALUES ($1, $2, $3, $4, 'active', $5, $6)
+     RETURNING *`,
+    [patientId, effectiveHospId, sessionToken, languagePref, true, expiresAt]
+  );
+
+  const session = newSessionRes.rows?.[0] || {
+    id: `sess-${Date.now()}`,
+    token: sessionToken,
+    expires_at: expiresAt,
+    status: 'active'
+  };
+
+  // 4. Mobile handoff URL
+  const mobileHandoffUrl = `/intake?session_id=${session.id}&token=${session.token}&hospital=${encodeURIComponent(effectiveHospId)}&kiosk_code=${verifyData.code}`;
+
+  return {
+    success: true,
+    session_id: session.id,
+    session_token: session.token,
+    created_at: new Date().toISOString(),
+    expires_at: session.expires_at,
+    ttl_seconds: ttlMinutes * 60,
+    kiosk_code: verifyData.code,
+    hospital_id: effectiveHospId,
+    mobile_handoff_url: mobileHandoffUrl
+  };
+}
+
+/**
+ * Get active session status and remaining TTL
+ */
+async function getSessionStatus(sessionId) {
+  const res = await query(
+    `SELECT * FROM patient_sessions WHERE id = $1 OR token = $1`,
+    [sessionId]
+  );
+
+  if (res.rowCount === 0) {
+    return { active: false, expired: true, error: 'Session not found' };
+  }
+
+  const session = res.rows[0];
+  const now = new Date();
+  const expiresAt = new Date(session.expires_at);
+  const remainingSeconds = Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 1000));
+
+  if (remainingSeconds <= 0 || session.status === 'expired') {
+    if (session.status !== 'expired') {
+      await query(`UPDATE patient_sessions SET status = 'expired' WHERE id = $1`, [session.id]);
+    }
+    return {
+      active: false,
+      expired: true,
+      remaining_seconds: 0,
+      message: 'Session has expired'
+    };
+  }
+
+  return {
+    active: true,
+    expired: false,
+    remaining_seconds: remainingSeconds,
+    session_id: session.id,
+    status: session.status,
+    expires_at: session.expires_at
+  };
+}
+
 module.exports = {
   generateVerificationCode,
-  verifyKioskPresence
+  verifyKioskPresence,
+  createIntakeSession,
+  getSessionStatus
 };

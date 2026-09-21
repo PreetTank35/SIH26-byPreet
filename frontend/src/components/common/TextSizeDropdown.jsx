@@ -3,29 +3,37 @@ import { ChevronDown, Check } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 
 /**
- * TextSizeDropdown — Accessible Font Size Presets Dropdown
- * Displays "A" badge + "आकार / Text Size" + Chevron
- * Expands to a radio-list of discrete WCAG preset levels: 100%, 115%, 130%, 150%.
+ * TextSizeDropdown — Accessibility Text Size Resizer Dropdown
+ * Standard government portal accessibility feature providing:
+ * - Small (A-) [85%]
+ * - Normal (A) [100% Default]
+ * - Large (A+) [115%]
+ * - Extra Large (A++) [130%]
+ * Dynamically scales root font size, updates CSS custom properties,
+ * and persists the preference in localStorage.
  */
 export default function TextSizeDropdown() {
   const { language } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  const FONT_PRESETS = [
+    { scale: 85, key: 'small', labelEn: 'Small (A-)', labelHi: 'छोटा (A-)', badge: 'A-', percent: '85%' },
+    { scale: 100, key: 'normal', labelEn: 'Normal (A)', labelHi: 'सामान्य (A)', badge: 'A', percent: '100%' },
+    { scale: 115, key: 'large', labelEn: 'Large (A+)', labelHi: 'बड़ा (A+)', badge: 'A+', percent: '115%' },
+    { scale: 130, key: 'xlarge', labelEn: 'Extra Large (A++)', labelHi: 'अति बड़ा (A++)', badge: 'A++', percent: '130%' }
+  ];
+
   const [fontScale, setFontScale] = useState(() => {
     if (typeof localStorage !== 'undefined') {
-      const saved = localStorage.getItem('medikiosk_font_scale');
-      if (saved) return Number(saved);
+      const saved = localStorage.getItem('medikiosk_font_scale') || localStorage.getItem('preferred_text_size');
+      if (saved) {
+        const num = Number(saved);
+        if ([85, 100, 115, 130].includes(num)) return num;
+      }
     }
     return 100;
   });
-
-  const FONT_PRESETS = [
-    { scale: 100, labelEn: '100% (Standard)', labelHi: '100% (सामान्य)' },
-    { scale: 115, labelEn: '115% (Medium)', labelHi: '115% (मध्यम)' },
-    { scale: 130, labelEn: '130% (Large)', labelHi: '130% (बड़ा)' },
-    { scale: 150, labelEn: '150% (Extra Large)', labelHi: '150% (अति बड़ा)' }
-  ];
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -48,21 +56,34 @@ export default function TextSizeDropdown() {
     };
   }, [isOpen]);
 
+  const applyFontScaleToDocument = (scale) => {
+    if (typeof document === 'undefined') return;
+    const ratio = scale / 100;
+    // Scale root font size proportionally (base 16px)
+    document.documentElement.style.fontSize = `${ratio * 16}px`;
+    document.documentElement.style.setProperty('--font-scale', `${ratio}`);
+    document.documentElement.setAttribute('data-font-scale', scale.toString());
+    
+    // Manage scale classes on root html element
+    document.documentElement.classList.remove('font-scale-85', 'font-scale-100', 'font-scale-115', 'font-scale-130', 'font-scale-150');
+    document.documentElement.classList.add(`font-scale-${scale}`);
+  };
+
   const handleSelectFontScale = (scale) => {
     setFontScale(scale);
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('medikiosk_font_scale', scale);
+      localStorage.setItem('medikiosk_font_scale', scale.toString());
+      localStorage.setItem('preferred_text_size', scale.toString());
     }
-    if (typeof document !== 'undefined') {
-      document.documentElement.style.fontSize = `${(scale / 100) * 16}px`;
-    }
+    applyFontScaleToDocument(scale);
   };
 
+  // Sync on mount and state update
   useEffect(() => {
-    if (typeof document !== 'undefined') {
-      document.documentElement.style.fontSize = `${(fontScale / 100) * 16}px`;
-    }
+    applyFontScaleToDocument(fontScale);
   }, [fontScale]);
+
+  const currentPreset = FONT_PRESETS.find(p => p.scale === fontScale) || FONT_PRESETS[1];
 
   return (
     <div className="gov-font-dropdown-wrapper" ref={dropdownRef}>
@@ -72,8 +93,8 @@ export default function TextSizeDropdown() {
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
-        aria-label="Select text size / अक्षर का आकार चुनें"
-        title="Choose text size / अक्षर का आकार चुनें"
+        aria-label="Text Size / अक्षर आकार: Select website font size"
+        title="Text Size / अक्षर आकार"
       >
         <span className="gov-font-icon-badge" aria-hidden="true">A</span>
         <span className="gov-font-btn-text">
@@ -84,8 +105,9 @@ export default function TextSizeDropdown() {
 
       {isOpen && (
         <div className="gov-font-dropdown-panel" role="listbox" aria-label="Official Text Size Presets">
-          <div className="gov-lang-dropdown-header">
-            <span>{language === 'hi' ? 'अक्षर का आकार' : 'Select Text Size'}</span>
+          <div className="gov-lang-dropdown-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{language === 'hi' ? 'अक्षर का आकार' : 'Text Size'}</span>
+            <span style={{ fontSize: '10px', opacity: 0.8 }}>{currentPreset.badge} ({currentPreset.percent})</span>
           </div>
           <div className="gov-lang-list">
             {FONT_PRESETS.map((preset) => {
@@ -94,27 +116,29 @@ export default function TextSizeDropdown() {
                 <button
                   key={preset.scale}
                   type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  className={`gov-lang-option ${isSelected ? 'selected' : ''}`}
+                  className={`gov-lang-item ${isSelected ? 'selected' : ''}`}
                   onClick={() => {
                     handleSelectFontScale(preset.scale);
                     setIsOpen(false);
                   }}
+                  role="option"
+                  aria-selected={isSelected}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
                 >
-                  <span className="gov-lang-radio-dot" aria-hidden="true">
-                    {isSelected && <span className="gov-lang-radio-inner" />}
-                  </span>
-                  <span className="gov-lang-native-name">
-                    {language === 'hi' ? preset.labelHi : preset.labelEn}
-                  </span>
-                  {isSelected && <Check size={13} className="gov-lang-check-icon" aria-hidden="true" />}
+                  <div className="gov-lang-item-content">
+                    <span className="gov-lang-native" style={{ fontWeight: isSelected ? '700' : '500' }}>
+                      {language === 'hi' ? preset.labelHi : preset.labelEn}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '11px', color: isSelected ? 'var(--gov-primary)' : 'var(--gov-text-muted)', fontWeight: '600' }}>
+                      {preset.percent}
+                    </span>
+                    {isSelected && <Check size={14} className="gov-lang-check" aria-hidden="true" />}
+                  </div>
                 </button>
               );
             })}
-          </div>
-          <div className="gov-lang-dropdown-footer">
-            <span>WCAG 2.2 AA · Text Resizing</span>
           </div>
         </div>
       )}

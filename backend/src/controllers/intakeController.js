@@ -281,12 +281,48 @@ async function getPatientHistory(req, res) {
   }
 }
 
+/**
+ * POST /api/intake/translate
+ * Translation endpoint via MeitY Bhashini NMT
+ */
+async function translateText(req, res) {
+  try {
+    const { text, source_language, target_language } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: 'text is required' });
+    }
+    const translated = await bhashiniService.translateText(text, source_language || 'en', target_language || 'hi');
+    res.json({ translated_text: translated, provider: 'bhashini' });
+  } catch (err) {
+    res.json({ translated_text: req.body?.text || '', provider: 'fallback', message: err.message });
+  }
+}
+
+/**
+ * POST /api/intake/transliterate
+ * Phonetic transliteration endpoint for Indic names
+ */
+async function transliterateText(req, res) {
+  try {
+    const { text, target_language } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: 'text is required' });
+    }
+    const transliterated = await bhashiniService.transliterateText(text, target_language || 'hi');
+    res.json({ transliterated_text: transliterated });
+  } catch (err) {
+    res.json({ transliterated_text: req.body?.text || '', error: err.message });
+  }
+}
+
 module.exports = {
   getSessionCase,
   submitAnswer,
   voiceOptionMap,
   speechToText,
   textToSpeech,
+  translateText,
+  transliterateText,
   aiInquiry,
   generateReport,
   verifyAbha,

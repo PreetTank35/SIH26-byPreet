@@ -53,30 +53,33 @@ export default function GovHeader({ activeView, onViewChange }) {
           {/* 2. Official Single Compact Language Switcher Dropdown (22 Bhashini Languages) */}
           <LanguageDropdown />
 
-          <span className="gov-utility-sep">|</span>
-
-          {/* User Auth Status / Sign Out or Register Pill */}
-          {staffUser ? (
-            <button 
-              type="button"
-              className="gov-utility-user-btn" 
-              onClick={logoutStaff}
-              title={`Logged in as ${staffUser.name} (${staffUser.role || 'Staff'}) — Click to sign out`}
-            >
-              <User size={13} aria-hidden="true" />
-              <span>{staffUser.name.split(' ')[0]}</span>
-              <LogOut size={12} aria-hidden="true" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="gov-utility-login-btn"
-              onClick={() => setLoginModalOpen(true)}
-              title="Staff & Doctor Login • Online Registration System"
-            >
-              <LogIn size={13} aria-hidden="true" />
-              <span>{translate('Doctor / Staff Sign-In')}</span>
-            </button>
+          {/* User Auth Status / Sign Out or Register Pill — Only shown on Portal views (Doctor / Admin), hidden on dedicated Kiosk Terminal */}
+          {activeView !== 'kiosk' && (
+            <>
+              <span className="gov-utility-sep">|</span>
+              {staffUser ? (
+                <button 
+                  type="button"
+                  className="gov-utility-user-btn" 
+                  onClick={logoutStaff}
+                  title={`Logged in as ${staffUser.name} (${staffUser.role || 'Staff'}) — Click to sign out`}
+                >
+                  <User size={13} aria-hidden="true" />
+                  <span>{staffUser.name.split(' ')[0]}</span>
+                  <LogOut size={12} aria-hidden="true" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="gov-utility-login-btn"
+                  onClick={() => setLoginModalOpen(true)}
+                  title="Staff & Doctor Login • Online Registration System"
+                >
+                  <LogIn size={13} aria-hidden="true" />
+                  <span>{translate('Doctor / Staff Sign-In')}</span>
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -135,47 +138,35 @@ export default function GovHeader({ activeView, onViewChange }) {
         </div>
       </div>
 
-      {/* ═══ 3. PRIMARY GOVERNMENT NAVIGATION BAR (Single Active Language Only per Rule C) ═══ */}
-      <nav className="gov-primary-navbar" aria-label="Portal Modules Navigation">
-        <div className="gov-nav-container">
-          <button 
-            type="button"
-            className={`gov-nav-item ${activeView === 'kiosk' ? 'active' : ''}`}
-            onClick={() => onViewChange('kiosk')}
-            aria-current={activeView === 'kiosk' ? 'page' : undefined}
-          >
-            <Tablet size={16} aria-hidden="true" />
-            <span className="gov-nav-label">{translate('kiosk')}</span>
-          </button>
-          <button 
-            type="button"
-            className={`gov-nav-item ${activeView === 'phone' ? 'active' : ''}`}
-            onClick={() => onViewChange('phone')}
-            aria-current={activeView === 'phone' ? 'page' : undefined}
-          >
-            <Smartphone size={16} aria-hidden="true" />
-            <span className="gov-nav-label">{translate('phone')}</span>
-          </button>
-          <button 
-            type="button"
-            className={`gov-nav-item ${activeView === 'doctor' ? 'active' : ''}`}
-            onClick={() => onViewChange('doctor')}
-            aria-current={activeView === 'doctor' ? 'page' : undefined}
-          >
-            <Stethoscope size={16} aria-hidden="true" />
-            <span className="gov-nav-label">{translate('doctor')}</span>
-          </button>
-          <button 
-            type="button"
-            className={`gov-nav-item ${activeView === 'admin' ? 'active' : ''}`}
-            onClick={() => onViewChange('admin')}
-            aria-current={activeView === 'admin' ? 'page' : undefined}
-          >
-            <ShieldCheck size={16} aria-hidden="true" />
-            <span className="gov-nav-label">{translate('admin')}</span>
-          </button>
-        </div>
-      </nav>
+      {/* ═══ 3. PRIMARY GOVERNMENT NAVIGATION BAR ═══ */}
+      {/* Context-Aware: Kiosk/Phone views show NO tabs (dedicated terminal experience).
+          Doctor/Admin portals show only their own tab for clean separation. */}
+      {(activeView === 'doctor' || activeView === 'admin') && (
+        <nav className="gov-primary-navbar" aria-label="Portal Modules Navigation">
+          <div className="gov-nav-container">
+            {activeView === 'doctor' && (
+              <button 
+                type="button"
+                className="gov-nav-item active"
+                aria-current="page"
+              >
+                <Stethoscope size={16} aria-hidden="true" />
+                <span className="gov-nav-label">{translate('doctor')}</span>
+              </button>
+            )}
+            {activeView === 'admin' && (
+              <button 
+                type="button"
+                className="gov-nav-item active"
+                aria-current="page"
+              >
+                <ShieldCheck size={16} aria-hidden="true" />
+                <span className="gov-nav-label">{translate('admin')}</span>
+              </button>
+            )}
+          </div>
+        </nav>
+      )}
 
       {/* ═══ 4. NATIONAL OPD ANNOUNCEMENTS MARQUEE TICKER (Rule G) ═══ */}
       <AnnouncementTicker />

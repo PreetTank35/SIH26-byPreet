@@ -9,7 +9,11 @@ const { query } = require('../db');
 async function getQueue(req, res) {
   try {
     const hospitalId = req.user.hospital_id;
-    const departmentId = req.query.department_id || req.user.department_id || null;
+    let departmentId = req.query.department_id !== undefined 
+      ? req.query.department_id 
+      : (req.user.department_id || null);
+    if (departmentId === 'all') departmentId = null;
+
     const queue = await queueService.getDoctorQueue(hospitalId, departmentId);
     res.json(queue);
   } catch (err) {

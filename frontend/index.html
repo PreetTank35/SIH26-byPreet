@@ -13,6 +13,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   </head>
   <body>
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('medikiosk_font_scale') || localStorage.getItem('preferred_text_size');
+          if (saved) {
+            var scale = parseInt(saved, 10);
+            if ([85, 100, 115, 130].indexOf(scale) !== -1) {
+              var ratio = scale / 100;
+              document.documentElement.style.fontSize = (ratio * 16) + 'px';
+              document.documentElement.style.setProperty('--font-scale', ratio.toString());
+              document.documentElement.setAttribute('data-font-scale', scale.toString());
+              document.documentElement.classList.add('font-scale-' + scale);
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

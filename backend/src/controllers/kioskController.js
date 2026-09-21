@@ -50,8 +50,38 @@ async function verifyPresence(req, res) {
   }
 }
 
+/**
+ * POST /api/kiosk/session/start
+ * Create initial kiosk intake session with 5-minute TTL
+ */
+async function startSession(req, res) {
+  try {
+    const { hospital_id, kiosk_device_id, language_pref } = req.body;
+    const session = await kioskService.createIntakeSession(hospital_id, kiosk_device_id, language_pref);
+    res.json(session);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * GET /api/kiosk/session/:id
+ * Check session validity and remaining time
+ */
+async function getSessionStatus(req, res) {
+  try {
+    const { id } = req.params;
+    const status = await kioskService.getSessionStatus(id);
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = {
   listKiosks,
   generateVerificationCode,
-  verifyPresence
+  verifyPresence,
+  startSession,
+  getSessionStatus
 };

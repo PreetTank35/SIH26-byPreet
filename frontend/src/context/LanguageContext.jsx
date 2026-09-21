@@ -8,27 +8,27 @@ const LanguageContext = createContext(null);
 export const BHASHINI_LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English', script: 'Latin', ready: true },
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी', script: 'Devanagari', ready: true },
-  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', script: 'Bengali', ready: false },
-  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', script: 'Devanagari', ready: false },
-  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', script: 'Telugu', ready: false },
-  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', script: 'Tamil', ready: false },
-  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', script: 'Gujarati', ready: false },
-  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', script: 'Kannada', ready: false },
-  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', script: 'Malayalam', ready: false },
-  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', script: 'Gurmukhi', ready: false },
-  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ିଆ', script: 'Odia', ready: false },
-  { code: 'as', name: 'Assamese', nativeName: 'অসমীয়া', script: 'Bengali-Assamese', ready: false },
-  { code: 'ur', name: 'Urdu', nativeName: 'اردو', script: 'Perso-Arabic', ready: false },
-  { code: 'sa', name: 'Sanskrit', nativeName: 'संस्कृतम्', script: 'Devanagari', ready: false },
-  { code: 'mai', name: 'Maithili', nativeName: 'मैथिली', script: 'Devanagari', ready: false },
-  { code: 'sat', name: 'Santali', nativeName: 'ᱥᱟᱱᱛᱟᱲᱤ', script: 'Ol Chiki', ready: false },
-  { code: 'ks', name: 'Kashmiri', nativeName: 'کٲشُر', script: 'Perso-Arabic', ready: false },
-  { code: 'ne', name: 'Nepali', nativeName: 'नेपाली', script: 'Devanagari', ready: false },
-  { code: 'kok', name: 'Konkani', nativeName: 'कोंकणी', script: 'Devanagari', ready: false },
-  { code: 'sd', name: 'Sindhi', nativeName: 'سنڌي', script: 'Perso-Arabic', ready: false },
-  { code: 'doi', name: 'Dogri', nativeName: 'डोगरी', script: 'Devanagari', ready: false },
-  { code: 'mni', name: 'Manipuri', nativeName: 'মৈতৈলোন্', script: 'Meetei Mayek', ready: false },
-  { code: 'brx', name: 'Bodo', nativeName: 'बड़ो', script: 'Devanagari', ready: false }
+  { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', script: 'Bengali', ready: true },
+  { code: 'mr', name: 'Marathi', nativeName: 'मराठी', script: 'Devanagari', ready: true },
+  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు', script: 'Telugu', ready: true },
+  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்', script: 'Tamil', ready: true },
+  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', script: 'Gujarati', ready: true },
+  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ', script: 'Kannada', ready: true },
+  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം', script: 'Malayalam', ready: true },
+  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', script: 'Gurmukhi', ready: true },
+  { code: 'or', name: 'Odia', nativeName: 'ଓଡ଼ିଆ', script: 'Odia', ready: true },
+  { code: 'as', name: 'Assamese', nativeName: 'অসমীয়া', script: 'Bengali-Assamese', ready: true },
+  { code: 'ur', name: 'Urdu', nativeName: 'اردو', script: 'Perso-Arabic', ready: true },
+  { code: 'sa', name: 'Sanskrit', nativeName: 'संस्कृतम्', script: 'Devanagari', ready: true },
+  { code: 'mai', name: 'Maithili', nativeName: 'मैथिली', script: 'Devanagari', ready: true },
+  { code: 'ne', name: 'Nepali', nativeName: 'नेपाली', script: 'Devanagari', ready: true },
+  { code: 'kok', name: 'Konkani', nativeName: 'कोंकणी', script: 'Devanagari', ready: true },
+  { code: 'sat', name: 'Santali', nativeName: 'ᱥᱟᱱᱛᱟᱲᱤ', script: 'Ol Chiki', ready: true },
+  { code: 'ks', name: 'Kashmiri', nativeName: 'کٲشُر', script: 'Perso-Arabic', ready: true },
+  { code: 'sd', name: 'Sindhi', nativeName: 'سنڌي', script: 'Perso-Arabic', ready: true },
+  { code: 'doi', name: 'Dogri', nativeName: 'डोगरी', script: 'Devanagari', ready: true },
+  { code: 'mni', name: 'Manipuri', nativeName: 'মৈতৈলোন্', script: 'Meetei Mayek', ready: true },
+  { code: 'brx', name: 'Bodo', nativeName: 'बड़ो', script: 'Devanagari', ready: true }
 ];
 
 const translations = {
@@ -473,21 +473,47 @@ const translations = {
   }
 };
 
+// Client-side cache for dynamic Bhashini translations
+const clientTranslationCache = new Map();
+
+// Quick client-side phonetic rule set for instant 0ms typing transliteration
+const CLIENT_INDIC_NAMES = {
+  'rahul': 'राहुल', 'rohit': 'रोहित', 'amit': 'अमित', 'anil': 'अनिल',
+  'vikram': 'विक्रम', 'ananya': 'अनन्या', 'priya': 'प्रिया', 'pooja': 'पूजा',
+  'sunita': 'सुनीता', 'anita': 'अनिता', 'deepak': 'दीपक', 'suresh': 'सुरेश',
+  'ramesh': 'रमेश', 'rajesh': 'राजेश', 'mahesh': 'महेश', 'dinesh': 'दिनेश',
+  'manoj': 'मनोज', 'sanjay': 'संजय', 'ajay': 'अजय', 'vijay': 'विजय',
+  'sharma': 'शर्मा', 'kumar': 'कुमार', 'singh': 'सिंह', 'patel': 'पटेल',
+  'gupta': 'गुप्ता', 'verma': 'वर्मा', 'yadav': 'यादव', 'pandey': 'पांडेय',
+  'mishra': 'मिश्रा', 'reddy': 'रेड्डी', 'nair': 'नायर', 'joshi': 'जोशी',
+  'devi': 'देवी', 'prasad': 'प्रसाद', 'neha': 'नेहा', 'kavita': 'कविता'
+};
+
 export function LanguageProvider({ children }) {
-  const [language, setLanguageState] = useState(() => localStorage.getItem('medikiosk_language') || 'hi');
+  // Persistent language storage: checks sessionStorage first, then localStorage, defaulting to 'hi'
+  const [language, setLanguageState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const sess = sessionStorage.getItem('medikiosk_language');
+      if (sess) return sess;
+      const local = localStorage.getItem('medikiosk_language');
+      if (local) return local;
+    }
+    return 'hi';
+  });
   const [isTranslating, setIsTranslating] = useState(false);
 
   const setLanguage = (nextLanguage) => {
-    // Only switch to supported languages directly, or trigger fallback gracefully
     setLanguageState(nextLanguage);
-    localStorage.setItem('medikiosk_language', nextLanguage);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('medikiosk_language', nextLanguage);
+      sessionStorage.setItem('medikiosk_language', nextLanguage);
+    }
   };
 
   /**
    * Pure O(1) Centralized Key-Based Translation Lookup
-   * Strict Rule [L]:
    * Tier 1: Target language dictionary
-   * Tier 2: Strict ENGLISH fallback (Never Hindi, so languages never mix!)
+   * Tier 2: Strict ENGLISH fallback
    */
   const translate = useCallback((key, fallback) => {
     if (!key) return '';
@@ -498,13 +524,134 @@ export function LanguageProvider({ children }) {
       return currentDict[key];
     }
 
-    // Tier 2: English fallback (default benchmark)
+    // Tier 2: English fallback
     if (translations.en && translations.en[key] !== undefined) {
       return translations.en[key];
     }
 
     // Tier 3: Provided fallback or key itself
     return fallback !== undefined ? fallback : key;
+  }, [language]);
+
+  /**
+   * Real-time Async Bhashini NMT Translation for dynamic inputs & texts
+   */
+  const translateAsync = useCallback(async (text, targetLang = null, sourceLang = 'en') => {
+    if (!text || typeof text !== 'string' || !text.trim()) return text;
+    const tgt = targetLang || language;
+    if (tgt === 'en' && sourceLang === 'en') return text;
+
+    const cacheKey = `${sourceLang}_${tgt}_${text.trim()}`;
+    if (clientTranslationCache.has(cacheKey)) {
+      return clientTranslationCache.get(cacheKey);
+    }
+
+    try {
+      setIsTranslating(true);
+      const res = await fetch('/api/intake/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          source_language: sourceLang,
+          target_language: tgt
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const translated = data.translated_text || text;
+        clientTranslationCache.set(cacheKey, translated);
+        return translated;
+      }
+    } catch (err) {
+      console.warn('[Bhashini Async Translation] Fallback:', err);
+    } finally {
+      setIsTranslating(false);
+    }
+    return text;
+  }, [language]);
+
+  /**
+   * Indic Transliteration Helper: converts English/Roman text into target Indic script (Devanagari, etc.)
+   */
+  const transliterateIndic = useCallback((text, targetLang = null) => {
+    if (!text || typeof text !== 'string') return '';
+    const tgt = targetLang || language;
+    if (tgt === 'en') return text;
+
+    // Check words against dictionary
+    const words = text.trim().split(/\s+/);
+    const converted = words.map(w => {
+      const lower = w.toLowerCase();
+      return CLIENT_INDIC_NAMES[lower] || null;
+    });
+
+    if (converted.every(w => w !== null)) {
+      return converted.join(' ');
+    }
+
+    // Syllabic heuristic for typing
+    const consonants = {
+      'kh': 'ख', 'gh': 'घ', 'ch': 'च', 'chh': 'छ', 'jh': 'झ', 'th': 'थ',
+      'dh': 'ध', 'ph': 'फ', 'bh': 'भ', 'sh': 'श', 'shh': 'ष', 'gy': 'ज्ञ',
+      'k': 'क', 'g': 'ग', 'j': 'ज', 't': 'त', 'd': 'द', 'n': 'न',
+      'p': 'प', 'b': 'ब', 'm': 'म', 'y': 'य', 'r': 'र', 'l': 'ल',
+      'v': 'व', 'w': 'व', 's': 'स', 'h': 'ह'
+    };
+    const vowels = {
+      'a': 'ा', 'aa': 'ा', 'i': 'ि', 'ee': 'ी', 'u': 'ु', 'oo': 'ू',
+      'e': 'े', 'ai': 'ै', 'o': 'ो', 'au': 'ौ', 'an': 'ं', 'ah': 'ः'
+    };
+    const initVowels = {
+      'a': 'अ', 'aa': 'आ', 'i': 'इ', 'ee': 'ई', 'u': 'उ', 'oo': 'ऊ',
+      'e': 'ए', 'ai': 'ऐ', 'o': 'ओ', 'au': 'औ'
+    };
+
+    let str = text.toLowerCase();
+    let result = '';
+    let i = 0;
+    while (i < str.length) {
+      if (str[i] === ' ') { result += ' '; i++; continue; }
+      if (i === 0 || str[i - 1] === ' ') {
+        if (i + 2 <= str.length && initVowels[str.slice(i, i + 2)]) {
+          result += initVowels[str.slice(i, i + 2)]; i += 2; continue;
+        }
+        if (initVowels[str[i]]) {
+          result += initVowels[str[i]]; i++; continue;
+        }
+      }
+      if (i + 2 <= str.length && consonants[str.slice(i, i + 2)]) {
+        const c = consonants[str.slice(i, i + 2)];
+        i += 2;
+        if (i + 2 <= str.length && vowels[str.slice(i, i + 2)]) {
+          result += c + vowels[str.slice(i, i + 2)]; i += 2;
+        } else if (i < str.length && vowels[str[i]]) {
+          if (str[i] !== 'a') result += c + vowels[str[i]];
+          else result += c;
+          i++;
+        } else {
+          result += c;
+        }
+        continue;
+      }
+      if (consonants[str[i]]) {
+        const c = consonants[str[i]];
+        i++;
+        if (i + 2 <= str.length && vowels[str.slice(i, i + 2)]) {
+          result += c + vowels[str.slice(i, i + 2)]; i += 2;
+        } else if (i < str.length && vowels[str[i]]) {
+          if (str[i] !== 'a') result += c + vowels[str[i]];
+          else result += c;
+          i++;
+        } else {
+          result += c;
+        }
+        continue;
+      }
+      result += str[i];
+      i++;
+    }
+    return result;
   }, [language]);
 
   // Alias for ergonomic use: t('key')
@@ -515,9 +662,11 @@ export function LanguageProvider({ children }) {
     setLanguage,
     translate,
     t,
+    translateAsync,
+    transliterateIndic,
     isTranslating,
     bhashiniLanguages: BHASHINI_LANGUAGES
-  }), [language, translate, t, isTranslating]);
+  }), [language, translate, t, translateAsync, transliterateIndic, isTranslating]);
 
   return (
     <LanguageContext.Provider value={value}>

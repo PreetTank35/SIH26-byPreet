@@ -409,11 +409,17 @@ function executeInMemoryQuery(sql, params) {
       language_pref: params[3] || 'en',
       status: 'active',
       is_kiosk_verified: Boolean(params[4]),
-      expires_at: params[5],
+      expires_at: params[5] || new Date(Date.now() + 5 * 60 * 1000),
       created_at: new Date()
     };
     memoryStore.patient_sessions.push(newSession);
     return { rows: [newSession], rowCount: 1 };
+  }
+
+  // 8b. Direct lookup: FROM patient_sessions WHERE id = $1 OR token = $1
+  if (clean.includes('FROM patient_sessions') && (clean.includes('WHERE id = $1') || clean.includes('token = $1'))) {
+    const session = memoryStore.patient_sessions.find(s => s.id === params[0] || s.token === params[0]);
+    return { rows: session ? [session] : [], rowCount: session ? 1 : 0 };
   }
 
   // 9. Session auth lookup: FROM patient_sessions s JOIN patients p
@@ -580,8 +586,14 @@ function executeInMemoryQuery(sql, params) {
   // 19. Doctor Queue: FROM tokens t JOIN cases c
   if (clean.includes('FROM tokens t') && clean.includes('JOIN cases c')) {
     const hospId = params[0];
+    const deptId = clean.includes('t.department_id = $3') && params[2] && params[2] !== 'all' ? params[2] : null;
     const activeTokens = memoryStore.tokens
-      .filter(t => t.hospital_id === hospId && ['waiting', 'called', 'in_consult', 'no_show'].includes(t.status))
+      .filter(t => {
+        const matchHosp = t.hospital_id === hospId;
+        const matchStatus = ['waiting', 'called', 'in_consult', 'no_show'].includes(t.status);
+        const matchDept = deptId ? t.department_id === deptId : true;
+        return matchHosp && matchStatus && matchDept;
+      })
       .sort((a, b) => {
         if (a.priority !== b.priority) return b.priority ? 1 : -1;
         return a.token_number - b.token_number;

@@ -338,3 +338,90 @@
   margin-bottom: 0;
 }
 
+/* ==========================================================================
+   RESPONSIVE OVERRIDES (TABLET & MOBILE DOCTOR INTERFACE)
+   ========================================================================== */
+
+@media (max-width: 1080px) {
+  .queue-sidebar {
+    width: 320px;
+  }
+  .clinical-split-grid {
+    grid-template-columns: 1fr 1.1fr;
+    gap: 14px;
+  }
+  .consult-workspace {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 860px) {
+  .doctor-layout {
+    flex-direction: column;
+    overflow-y: auto;
+    height: 100%;
+  }
+  .queue-sidebar {
+    width: 100%;
+    height: auto;
+    max-height: 260px;
+    border-right: none;
+    border-bottom: 2px solid var(--gov-border-strong);
+    flex-shrink: 0;
+  }
+  .queue-list {
+    max-height: 180px;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 12px;
+  }
+  .queue-item-card {
+    min-width: 220px;
+    flex-shrink: 0;
+  }
+  .consult-workspace {
+    flex: 1;
+    min-height: 0;
+    padding: 12px;
+    overflow-y: visible;
+  }
+  .clinical-split-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .patient-banner-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .doctor-actions-row {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .queue-sidebar-header {
+    padding: 10px 12px;
+  }
+  .queue-sidebar-header h3 {
+    font-size: 13.5px;
+  }
+  .consult-workspace {
+    padding: 8px;
+  }
+  .transcript-panel, .rx-compose-panel {
+    padding: 12px;
+  }
+  .rx-med-row {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .patient-banner-bar {
+    padding: 10px 12px;
+  }
+}
+
+

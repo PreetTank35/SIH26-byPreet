@@ -7,6 +7,7 @@ import {
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import BilingualPatientInput from './BilingualPatientInput';
 
 /**
  * Generates a random 6-character alphanumeric captcha
@@ -101,6 +102,7 @@ export default function OrsLoginCard({
 
   // Rapid Walk-In Form Inputs
   const [walkinName, setWalkinName] = useState('');
+  const [walkinNameIndic, setWalkinNameIndic] = useState('');
   const [walkinAge, setWalkinAge] = useState('');
   const [walkinGender, setWalkinGender] = useState('Male');
   const [walkinPhone, setWalkinPhone] = useState('');
@@ -165,7 +167,8 @@ export default function OrsLoginCard({
       const digits = mobileInput.replace(/\D/g, '');
       return digits.length === 10 && isCaptchaValid;
     } else if (activeTab === 'rapid') {
-      return walkinName.trim().length >= 2 && Boolean(walkinAge) && isCaptchaValid;
+      const hasName = (walkinName.trim().length >= 2) || (walkinNameIndic.trim().length >= 2);
+      return hasName && Boolean(walkinAge) && isCaptchaValid;
     } else if (activeTab === 'staff') {
       return staffEmail.trim().length >= 3 && staffPassword.length >= 4 && isCaptchaValid;
     }
@@ -195,8 +198,11 @@ export default function OrsLoginCard({
       } else if (activeTab === 'rapid') {
         // Rapid Walk-in Patient (Instant OPD token without ABHA)
         const effectivePhone = walkinPhone.replace(/\D/g, '') || '9876543210';
+        const effectiveName = walkinName.trim() || walkinNameIndic.trim() || 'Walk-in Citizen';
         const profile = {
-          name: walkinName.trim(),
+          name: effectiveName,
+          name_en: walkinName.trim() || effectiveName,
+          name_indic: walkinNameIndic.trim() || effectiveName,
           age: parseInt(walkinAge, 10) || 30,
           gender: walkinGender || 'Other',
           phone: effectivePhone,
@@ -419,17 +425,15 @@ export default function OrsLoginCard({
                 <strong>Emergency / Walk-in Registration:</strong> For patients without an ABHA card or mobile phone, generate an instant verified walk-in OPD token.
               </div>
 
-              <div className="ors-input-group">
-                <input
-                  type="text"
-                  className="ors-text-input"
-                  placeholder="Patient Full Name *"
-                  value={walkinName}
-                  onChange={(e) => setWalkinName(e.target.value)}
-                  autoFocus
-                  required
-                />
-              </div>
+              <BilingualPatientInput
+                valueEn={walkinName}
+                valueIndic={walkinNameIndic}
+                onChange={({ nameEn, nameIndic }) => {
+                  setWalkinName(nameEn);
+                  setWalkinNameIndic(nameIndic);
+                }}
+                required={true}
+              />
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                 <div className="ors-input-group" style={{ marginBottom: 0 }}>

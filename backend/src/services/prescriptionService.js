@@ -1,4 +1,5 @@
 const { query, getClient } = require('../db');
+const { emitToRoom } = require('./wsService');
 
 /**
  * Typo-tolerant Medicine Search via pg_trgm & ILIKE
@@ -77,8 +78,8 @@ async function createPrescription(caseId, doctorId, remarks, nextCheckupDate, it
     );
 
     // 4. Mark Token as 'completed'
-    await client.query(
-      `UPDATE tokens SET status = 'completed' WHERE case_id = $1`,
+    const tokRes = await client.query(
+      `UPDATE tokens SET status = 'completed' WHERE case_id = $1 RETURNING *`,
       [caseId]
     );
 
@@ -86,8 +87,26 @@ async function createPrescription(caseId, doctorId, remarks, nextCheckupDate, it
 
     // Fetch full prescription with items
     const fullRx = await getPrescriptionById(prescription.id);
-    return fullRx;
 
+    // Broadcast queue update to hospital and patient
+    const token = tokRes.rows[0];
+    if (token) {
+      emitToRoom(`hospital:${token.hospital_id}`, {
+        event: 'queue_update',
+        action: 'consult_completed',
+        token_id: token.id,
+        status: 'completed',
+        timestamp: new Date().toISOString()
+      });
+      emitToRoom(`case:${caseId}`, {
+        event: 'prescription_ready',
+        prescription_id: prescription.id,
+        remarks: remarks || '',
+        message: 'Your prescription has been issued by the attending doctor.'
+      });
+    }
+
+    return fullRx;
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

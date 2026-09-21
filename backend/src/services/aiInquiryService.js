@@ -82,92 +82,62 @@ function extractJsonFromText(text) {
 /**
  * Call OpenRouter API with model fallback chain
  */
-async function callOpenRouter(messages, jsonMode = true, maxRetries = 0) {
+async function callOpenRouter(messages, jsonMode = true) {
   if (!OPENROUTER_API_KEY) {
     throw new Error('OPENROUTER_API_KEY is not configured in .env');
   }
 
-  let lastError = null;
+  // Fast single-pass model check with 1.8s timeout to guarantee low latency
+  const model = MODEL_CHAIN[0] || 'google/gemma-4-26b-a4b-it:free';
+  try {
+    const body = {
+      model,
+      messages,
+      temperature: 0.2,
+      max_tokens: 250
+    };
 
-  for (const model of MODEL_CHAIN) {
-    const strategies = jsonMode ? ['json_mode', 'no_json_mode'] : ['no_json_mode'];
-
-    let skipModel = false;
-    for (const strategy of strategies) {
-      if (skipModel) break;
-
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          const body = {
-            model,
-            messages,
-            temperature: 0.3,
-            max_tokens: 3000
-          };
-
-          if (strategy === 'json_mode') {
-            body.response_format = { type: 'json_object' };
-          }
-
-          const response = await fetch(OPENROUTER_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-              'HTTP-Referer': 'https://medikiosk.gov.in',
-              'X-Title': 'MediKiosk OPD Intake'
-            },
-            body: JSON.stringify(body),
-            signal: AbortSignal.timeout(10000)
-          });
-
-          if (!response.ok) {
-            const errText = await response.text();
-            if (response.status === 429) {
-              lastError = new Error(`OpenRouter ${model} (429 Rate Limit)`);
-              skipModel = true;
-              break;
-            }
-            if (response.status >= 500) {
-              lastError = new Error(`OpenRouter ${model} (${response.status}): ${errText}`);
-              skipModel = true;
-              break;
-            }
-            throw new Error(`OpenRouter API Error (${response.status}): ${errText}`);
-          }
-
-          const data = await response.json();
-          let content = data.choices?.[0]?.message?.content || '';
-
-          if (!content.trim() && data.choices?.[0]?.message?.reasoning) {
-            content = data.choices[0].message.reasoning;
-          }
-
-          if (!content.trim()) {
-            throw new Error('Empty response from model');
-          }
-
-          if (jsonMode) {
-            const parsed = extractJsonFromText(content);
-            if (parsed) {
-              return parsed;
-            }
-            throw new Error('Failed to parse AI response as JSON');
-          }
-
-          return content;
-
-        } catch (err) {
-          lastError = err;
-          if (attempt < maxRetries) {
-            await new Promise(r => setTimeout(r, 600 * (attempt + 1)));
-          }
-        }
-      }
+    if (jsonMode) {
+      body.response_format = { type: 'json_object' };
     }
-  }
 
-  throw lastError || new Error('All OpenRouter models failed');
+    const response = await fetch(OPENROUTER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://medikiosk.gov.in',
+        'X-Title': 'MediKiosk OPD Intake'
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(1800) // Fast 1.8s race timeout
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`OpenRouter (${response.status}): ${errText}`);
+    }
+
+    const data = await response.json();
+    let content = data.choices?.[0]?.message?.content || '';
+    if (!content.trim() && data.choices?.[0]?.message?.reasoning) {
+      content = data.choices[0].message.reasoning;
+    }
+
+    if (!content.trim()) {
+      throw new Error('Empty response from model');
+    }
+
+    if (jsonMode) {
+      const parsed = extractJsonFromText(content);
+      if (parsed) return parsed;
+      throw new Error('Failed to parse AI response as JSON');
+    }
+
+    return content;
+  } catch (err) {
+    throw err;
+  }
 }
 
 /**
@@ -635,18 +605,42 @@ async function generateClinicalReport(conversationHistory = [], patientInfo = {}
     urgency = isSevere ? 'priority' : 'routine';
   }
 
-  // Construct fallback clinical report
+  // Department Hindi translations
+  const deptTranslations = {
+    'General Medicine': 'सामान्य चिकित्सा (जनरल मेडिसिन)',
+    'Emergency / Cardiology': 'आपातकालीन / हृदय रोग (कार्डियोलॉजी)',
+    'General Medicine (Cardio Triage)': 'सामान्य चिकित्सा (हृदय रोग जांच)',
+    'Gastroenterology / General Medicine': 'उदर रोग (गैस्ट्रोएंटरोलॉजी) / सामान्य चिकित्सा',
+    'Orthopedics / AYUSH (Panchakarma)': 'अस्थि रोग (ऑर्थोपेडिक्स) / आयुष (पंचकर्म)',
+    'Dermatology': 'त्वचा रोग (डर्मेटोलॉजी)',
+    'General Medicine (Infectious Diseases)': 'सामान्य चिकित्सा (संक्रमण रोग)',
+    'General Medicine / AYUSH': 'सामान्य चिकित्सा / आयुष'
+  };
+
+  const deptHi = deptTranslations[dept] || dept;
+
+  // Construct fallback clinical report with comprehensive bilingual fields
   const fallbackReport = {
     chief_complaint: q1,
+    chief_complaint_en: q1,
+    chief_complaint_hi: `मुख्य शिकायत: ${q1}`,
     symptom_summary: `Chief Complaint: ${q1}. Onset & Duration: ${q2}. Severity & Nature: ${q3}. Associated Symptoms: ${q4}. Triggers/Aggravating Factors: ${q5}.`,
+    symptom_summary_en: `Chief Complaint: ${q1}. Onset & Duration: ${q2}. Severity & Nature: ${q3}. Associated Symptoms: ${q4}. Triggers/Aggravating Factors: ${q5}.`,
+    symptom_summary_hi: `लक्षण सारांश: मुख्य समस्या: ${q1}। शुरुआत व अवधि: ${q2}। तीव्रता: ${severityAssessment === 'severe' ? 'गंभीर' : (severityAssessment === 'mild' ? 'हल्का' : 'मध्यम')} (${q3})। जुड़े लक्षण: ${q4}। कारक: ${q5}।`,
     severity_assessment: severityAssessment,
     recommended_department: dept,
+    recommended_department_en: dept,
+    recommended_department_hi: deptHi,
     symptom_tags: [cat, severityAssessment],
     clinical_notes: `Clinical Doctor Triage (6-Stage Assessment completed). Medical History & Medications: ${q6}.${ocrTexts.length > 0 ? ` Patient uploaded ${ocrTexts.length} medical document(s) for doctor review.` : ''}`,
+    clinical_notes_en: `Clinical Doctor Triage (6-Stage Assessment completed). Medical History & Medications: ${q6}.${ocrTexts.length > 0 ? ` Patient uploaded ${ocrTexts.length} medical document(s) for doctor review.` : ''}`,
+    clinical_notes_hi: `क्लिनिकल नोट्स: 6-चरणीय लक्षण परामर्श पूर्ण। पूर्व मेडिकल इतिहास व दवाइयां: ${q6}।${ocrTexts.length > 0 ? ` मरीज ने ${ocrTexts.length} मेडिकल दस्तावेज अपलोड किए हैं।` : ''}`,
     history_summary: q6,
+    history_summary_en: q6,
+    history_summary_hi: `पूर्व इतिहास: ${q6}`,
     urgency_flag: urgency,
     report_text_en: `Patient ${patientInfo?.name || 'Citizen'} presented with ${q1}. Symptoms onset: ${q2}. Severity assessed as ${severityAssessment.toUpperCase()} (${q3}). Associated findings: ${q4}. Factors affecting symptoms: ${q5}. Medical history: ${q6}.${ocrTexts.length > 0 ? ' Relevant uploaded medical records attached.' : ''} Recommended for ${dept} evaluation with ${urgency.toUpperCase()} priority.`,
-    report_text_hi: `मरीज ${patientInfo?.name || 'नागरिक'} ने ${q1} की मुख्य शिकायत दर्ज कराई। लक्षणों की अवधि: ${q2}। गंभीरता: ${severityAssessment === 'severe' ? 'गंभीर' : (severityAssessment === 'mild' ? 'हल्का' : 'मध्यम')} (${q3})। जुड़े लक्षण: ${q4}। मेडिकल इतिहास व दवाइयां: ${q6}। ${dept} विभाग में परामर्श की सिफारिश की गई है।`
+    report_text_hi: `मरीज ${patientInfo?.name || 'नागरिक'} ने ${q1} की मुख्य शिकायत दर्ज कराई। लक्षणों की शुरुआत व अवधि: ${q2}। गंभीरता: ${severityAssessment === 'severe' ? 'गंभीर' : (severityAssessment === 'mild' ? 'हल्की' : 'मध्यम')} (${q3})। संबद्ध लक्षण: ${q4}। लक्षण बढ़ाने वाले कारक: ${q5}। मेडिकल इतिहास व दवाइयां: ${q6}। ${deptHi} विभाग में ${urgency === 'urgent' ? 'तत्काल (URGENT)' : (urgency === 'priority' ? 'प्राथमिकता (PRIORITY)' : 'सामान्य (ROUTINE)')} परामर्श की सिफारिश की गई है।`
   };
 
   // Try OpenRouter to enrich report if available
@@ -661,13 +655,23 @@ Q6 (Medical History & Medications): ${q6}${ocrSection}
 
 Return ONLY valid JSON matching this schema:
 {
-  "chief_complaint": "1-2 sentences",
-  "symptom_summary": "detailed clinical synthesis of all 6 stages",
+  "chief_complaint": "1-2 sentences in English",
+  "chief_complaint_en": "1-2 sentences in English",
+  "chief_complaint_hi": "मुख्य शिकायत हिन्दी में",
+  "symptom_summary": "detailed clinical synthesis in English",
+  "symptom_summary_en": "detailed clinical synthesis in English",
+  "symptom_summary_hi": "विस्तृत लक्षण सारांश हिन्दी में",
   "severity_assessment": "mild | moderate | severe",
-  "recommended_department": "department name",
+  "recommended_department": "department name in English",
+  "recommended_department_en": "department name in English",
+  "recommended_department_hi": "विभाग का नाम हिन्दी में",
   "symptom_tags": ["tag1", "tag2"],
-  "clinical_notes": "clinical observations and risk factors",
-  "history_summary": "past history and medications",
+  "clinical_notes": "clinical observations and risk factors in English",
+  "clinical_notes_en": "clinical observations and risk factors in English",
+  "clinical_notes_hi": "क्लिनिकल नोट्स हिन्दी में",
+  "history_summary": "past history and medications in English",
+  "history_summary_en": "past history and medications in English",
+  "history_summary_hi": "पूर्व इतिहास हिन्दी में",
   "urgency_flag": "routine | priority | urgent",
   "report_text_en": "Full professional English doctor report",
   "report_text_hi": "Full professional Hindi doctor report"
@@ -679,7 +683,16 @@ Return ONLY valid JSON matching this schema:
       { role: 'user', content: 'Synthesize the clinical intake report now.' }
     ]);
     if (result && result.chief_complaint && result.report_text_en) {
-      return result;
+      return {
+        ...fallbackReport,
+        ...result,
+        chief_complaint_en: result.chief_complaint_en || result.chief_complaint,
+        chief_complaint_hi: result.chief_complaint_hi || fallbackReport.chief_complaint_hi,
+        symptom_summary_en: result.symptom_summary_en || result.symptom_summary,
+        symptom_summary_hi: result.symptom_summary_hi || fallbackReport.symptom_summary_hi,
+        report_text_en: result.report_text_en,
+        report_text_hi: result.report_text_hi || fallbackReport.report_text_hi
+      };
     }
   } catch (err) {
     console.log('[AI Doctor] Using clinical synthesis report generator');

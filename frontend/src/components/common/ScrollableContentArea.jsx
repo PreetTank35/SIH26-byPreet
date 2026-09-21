@@ -22,16 +22,17 @@ const ScrollableContentArea = forwardRef(function ScrollableContentArea({
       id={id}
       className={`gov-scrollable-content ${className}`}
       style={{
-        flex: 1,
+        flex: '1 0 auto',
         width: '100%',
-        minHeight: 0,
-        overflowY: 'auto',
-        overflowX: 'hidden',
+        minHeight: '100%',
+        height: 'auto',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         position: 'relative',
         boxSizing: 'border-box',
+        overflow: 'visible',
+        WebkitOverflowScrolling: 'touch',
         ...style
       }}
       {...props}
@@ -41,10 +42,11 @@ const ScrollableContentArea = forwardRef(function ScrollableContentArea({
         style={{
           width: '100%',
           maxWidth: maxWidth,
-          flex: 1,
+          flex: '1 0 auto',
           display: 'flex',
           flexDirection: 'column',
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
+          paddingBottom: 'clamp(40px, 6vh, 80px)'
         }}
       >
         {children}

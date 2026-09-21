@@ -29,6 +29,8 @@ router.post('/answer', authenticatePatientSession, intakeController.submitAnswer
 router.post('/voice-map', intakeController.voiceOptionMap);
 router.post('/speech-to-text', intakeController.speechToText);
 router.post('/text-to-speech', intakeController.textToSpeech);
+router.post('/translate', intakeController.translateText);
+router.post('/transliterate', intakeController.transliterateText);
 router.post('/upload-doc', authenticatePatientSession, upload.single('document'), intakeController.uploadDocument);
 router.post('/complete', authenticatePatientSession, intakeController.completeIntake);
 router.get('/patient-history', authenticatePatientSession, intakeController.getPatientHistory);
